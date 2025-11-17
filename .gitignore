@@ -1,6 +1,74 @@
-# gitignore template for LangChain products, e.g., LangGraph, LangSmith
-# website: https://www.langchain.com/
-# website: https://www.langchain.com/langgraph
+# -----------------------------
+# Python Virtual Environment
+# -----------------------------
+venv/
+.env/
+*.env
+.env.local
 
-# LangGraph
-.langgraph_api/
+# -----------------------------
+# Python Cache / Build Files
+# -----------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+build/
+dist/
+
+# -----------------------------
+# LangChain / LLM Cache
+# -----------------------------
+lc_logs/
+lc_cache/
+.langchain/
+.chat_history/
+
+# -----------------------------
+# Project Temp Files
+# -----------------------------
+temp_repo/
+temp/
+tmp/
+.cache/
+*.log
+
+# -----------------------------
+# OS System Files
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# IDE / Editor Files
+# -----------------------------
+.vscode/
+.idea/
+*.iml
+
+# -----------------------------
+# Node.js (if mixed project)
+# -----------------------------
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# -----------------------------
+# Environment / API keys
+# -----------------------------
+*.key
+*.token
+*.secret
+*.pem
+*.crt
+*credentials.json
+
+# -----------------------------
+# Misc Stuff
+# -----------------------------
+*.sqlite3
+*.db
