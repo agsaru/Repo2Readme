@@ -1,0 +1,22 @@
+[project]
+name="repo2readme"
+version="0.1.0"
+description="Generate README.md from any GitHub or local repository"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+
+
+dependencies=[
+    "click",
+    "rich",
+    "langchain",
+    "langchain-community",
+    "langchain_core",
+    "GitPython",
+    "langchain-groq",
+    "groq"   
+]
+
+[project.scripts]
+repo2readme = "repo2readme.cli.main:main"

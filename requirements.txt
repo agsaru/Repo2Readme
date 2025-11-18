@@ -4,7 +4,7 @@ langchain-community
 langchain-groq
 groq
 
-
+rich
 
 pydantic
 # environment varilables

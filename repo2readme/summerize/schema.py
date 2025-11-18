@@ -6,7 +6,7 @@ class FunctionSummary(BaseModel):
     name:str=Field(...,description="The name of the function or the class")
     description:str=Field(...,description="One-line summary of what the function/class has done")
     params:Optional[Union[List[str], Dict[str, Any]]] =Field(default=None,description="List of parameters name")
-    returns:Optional[str]=Field(default=None,description="What it returns as a output")
+    returns:Optional[Union[str, dict]]=Field(default=None,description="What it returns as a output")
     
     @field_validator("params")
     def normalize_params(cls, value):
