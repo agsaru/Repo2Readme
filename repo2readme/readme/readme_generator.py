@@ -1,4 +1,5 @@
-from langchain_groq import ChatGroq
+# from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -6,12 +7,9 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 def readme_builder():
-    model =ChatGroq (
-        model="llama-3.1-8b-instant",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2,
-        
-    )
+    
+    api_key = os.getenv("GOOGLE_API_KEY")
+    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
     prompt = PromptTemplate(
     template="""
 You are an expert technical writer and a senior software engineer.
@@ -31,7 +29,7 @@ Your task is to generate a clean, polished, and professional **README.md** for t
 
 ---
 
-### ✅ What the README Must Include
+### ✅ What the README Must Include if only they are available dont make these sections if they are not available
 
 1. **Project Title**
 2. **Short Description** (2–4 clear, human-friendly lines)

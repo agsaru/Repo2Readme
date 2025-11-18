@@ -14,6 +14,7 @@ IGNORE_FILES = {
     "package-lock.json",
     "yarn.lock",
     "pnpm-lock.yaml",
+    "__init__.py",  
     ".env",
     ".env.example",
     ".env.local",
@@ -25,7 +26,7 @@ IGNORE_FILES = {
 IGNORE_EXTENSIONS = {
     ".exe", ".dll", ".bin", ".class", ".o", ".so", ".dylib",
     ".zip", ".tar", ".gz", ".jar", ".war", ".ear",
-    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",".txt",
     ".log", ".lock", ".db", ".sqlite", ".pdf",
     ".csv" ,".json"# if you want to ignore JSON too
 }

@@ -1,22 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
 [project]
-name="repo2readme"
-version="0.1.0"
-description="Generate README.md from any GitHub or local repository"
+name = "repo2readme"
+version = "0.1.0"
+description = "Generate README.md from any GitHub or local repository"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 
+authors = [
+    { name = "Sarowar Jahan Biswas" }
+]
 
-dependencies=[
+dependencies = [
     "click",
     "rich",
     "langchain",
     "langchain-community",
-    "langchain_core",
+    "langchain-core",
     "GitPython",
     "langchain-groq",
-    "groq"   
+    "langchain-google-genai", 
+    "groq",
+    "python-dotenv"
 ]
+
 
 [project.scripts]
 repo2readme = "repo2readme.cli.main:main"
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["repo2readme*"]
+
+
+[tool.setuptools]
+include-package-data = true
+
+
+[tool.setuptools.package-data]
+"repo2readme" = ["*.md", "*.txt", "*.json"]
