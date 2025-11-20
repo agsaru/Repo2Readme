@@ -1,20 +1,11 @@
 
 # Repo2Readme
 
-[![Python
-Version](https://img.shields.io/badge/python-3.9+-blue.svg)](h
-ttps://www.python.org/downloads/)
-[![License:
-MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LIC
-ENSE)
-[![GitHub
-Stars](https://img.shields.io/github/stars/your-username/Repo2
-Readme?style=social)](https://github.com/your-username/Repo2Re
-adme/stargazers)
-[![GitHub
-Forks](https://img.shields.io/github/forks/your-username/Repo2
-Readme?style=social)](https://github.com/your-username/Repo2Re
-adme/network/members)
+[![PythonVersion](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHubStars](https://img.shields.io/github/stars/your-username/Repo2Readme?style=social](https://github.com/your-username/Repo2Readme/stargazers)
+[![GitHubForks](https://img.shields.io/github/forks/your-username/Repo2
+Readme?style=social)](https://github.com/your-username/Repo2Readme/network/members)
 
 Repo2Readme is a powerful Python-based command-line interface 
 (CLI) tool designed to effortlessly generate clean, polished, 
