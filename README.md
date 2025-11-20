@@ -1,8 +1,19 @@
 # 🚀 Repo2Readme
 
-[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![CLI Tool](https://img.shields.io/badge/tool-CLI-informational.svg)](https://en.wikipedia.org/wiki/Command-line_interface)
+[![Python
+Version](https://img.shields.io/badge/python-3.9+-blue.svg)](h
+ttps://www.python.org/downloads/)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LIC
+ENSE)
+[![GitHub
+Stars](https://img.shields.io/github/stars/your-username/Repo2
+Readme?style=social)](https://github.com/your-username/Repo2Re
+adme/stargazers)
+[![GitHub
+Forks](https://img.shields.io/github/forks/your-username/Repo2
+Readme?style=social)](https://github.com/your-username/Repo2Re
+adme/network/members)
 
 Repo2Readme is a powerful Python-based command-line interface (CLI) tool designed to effortlessly generate clean, polished, and professional `README.md` files. Whether you're working with a GitHub repository or a local project, Repo2Readme streamlines the documentation process, helping you present your work clearly and professionally.
 
@@ -232,5 +243,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## 🙏 Credits / Acknowledgements
 
-*   Developed by the Repo2Readme team.
-*   Special thanks to the open-source communities behind Click, Rich, LangChain, Pydantic, GitPython, Groq, and Google GenAI for their invaluable libraries.
+-   Developed by Sarowar Jahan Biswas.
+-   Special thanks to the open-source community and the       
+developers of `Click`, `Rich`, `LangChain`, `Pydantic`,       
+`GitPython`, and other libraries that made this project       
+possible.
