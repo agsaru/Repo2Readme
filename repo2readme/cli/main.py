@@ -20,7 +20,7 @@ def main():
 @main.command()
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
-@click.option("--output", "-o", default=None, help="Save README to file")
+@click.option("--output", "-o", default=None,flag_value="README.md", help="Save README to file")
 def run(url, local, output):
     groq_key, gemini_key = get_api_keys()
     os.environ["GROQ_API_KEY"] = groq_key
