@@ -5,6 +5,8 @@ langchain-google-genai
 langchain-groq
 groq
 
+
+
 rich
 
 pydantic

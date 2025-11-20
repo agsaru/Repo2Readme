@@ -28,7 +28,7 @@ IGNORE_EXTENSIONS = {
     ".zip", ".tar", ".gz", ".jar", ".war", ".ear",
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",".txt",
     ".log", ".lock", ".db", ".sqlite", ".pdf",
-    ".csv" ,".json"# if you want to ignore JSON too
+    ".csv" ,".json"
 }
 
 
@@ -37,18 +37,14 @@ def github_file_filter(path: str) -> bool:
     lower = uni.lower().strip()
     base = os.path.basename(lower).strip()
 
-    # Ignore specific file names
     if base in IGNORE_FILES:
         return False
-    # Ignore directories
     for d in IGNORE_DIRS:
       if f"/{d}/" in lower or lower.endswith(f"/{d}"):
         return False
 
-
-    # Ignore extensions
     _, ext = os.path.splitext(base)
     if ext in IGNORE_EXTENSIONS:
         return False
 
-    return True  # load everything else
+    return True 

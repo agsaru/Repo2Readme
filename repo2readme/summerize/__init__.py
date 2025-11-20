@@ -5,7 +5,7 @@ from .schema import (
     parser
 )
 
-from .summary_chain import (
+from .summary import (
     create_summarizer,
     summarize_file
 )

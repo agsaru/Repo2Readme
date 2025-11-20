@@ -16,7 +16,6 @@ class LocalRepoLoader:
 
         for current, dirs, files in os.walk(self.folder_path):
 
-            # Only allow dirs that pass filter
             dirs[:] = [
                 d for d in dirs
                 if github_file_filter(os.path.join(current, d))
@@ -25,7 +24,6 @@ class LocalRepoLoader:
             for f in files:
                 full = os.path.join(current, f)
 
-                # Skip ignored files
                 if not github_file_filter(full):
                     continue
 
@@ -59,7 +57,6 @@ class UrlRepoLoader:
         base_temp = tempfile.gettempdir()
         self.temp_dir = os.path.join(base_temp, repo_name)
 
-        # Fresh clone
         if os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir, onerror=force_remove)
 
@@ -69,7 +66,7 @@ class UrlRepoLoader:
             repo_path=self.temp_dir,
             clone_url=self.clone_url,
             branch=self.branch,
-            file_filter=github_file_filter     # Uses NEW logic
+            file_filter=github_file_filter 
         )
 
         docs = loader.load()

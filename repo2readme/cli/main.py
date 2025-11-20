@@ -2,110 +2,99 @@ import click
 from rich import print as rprint
 from rich.progress import Progress
 
-# Adjust these imports if necessary to match your folder structure
+
+from repo2readme.config import get_api_keys,reset_api_keys
+import os
+
 from repo2readme.loaders.repo_loader import RepoLoader
-from repo2readme.utils.detect_language import detect_lang
-from repo2readme.summerize.summary_chain import summarize_file
 from repo2readme.utils.tree import extract_tree
+
+from repo2readme.summerize.summary import summarize_file
 from repo2readme.readme.readme_generator import generate_readme
+from repo2readme.utils.detect_language import detect_lang
 
-@click.command()
-@click.option("--url", "-u", prompt=False, help="Url of github repository")
-@click.option("--local", "-l", prompt=False, help="Path of the local repository")
-@click.option(
-    "--output", "-o",
-    required=False,      
-    flag_value="README.md",  # <--- KEY FIX: Use this string if -o is typed alone
-    default=None,            # <--- KEY FIX: Use None if -o is omitted
-    help="Save generated readme."
-)
-def main(url, local, output):
+@click.group()
+def main():
+    """readme cli"""
 
-    # --- DEBUG PRINT (Remove later) ---
-    # This proves you are running the correct file
-    rprint("[yellow]Debug: Running the UPDATED cli/main.py[/yellow]") 
-    
-    # 1. Handle Inputs
+@main.command()
+@click.option("--url", "-u", help="GitHub repo URL")
+@click.option("--local", "-l", help="Local repo path")
+@click.option("--output", "-o", default=None, help="Save README to file")
+def run(url, local, output):
+    groq_key, gemini_key = get_api_keys()
+    os.environ["GROQ_API_KEY"] = groq_key
+    os.environ["GOOGLE_API_KEY"] = gemini_key
+
     if not url and not local:
-        choice = click.prompt(
-            "No repository source provided. Load from (1) Github or (2) Local Folder",
-            type=click.Choice(['1', '2']),
-            show_choices=True
-        )
-        if choice == '1':
-            url = click.prompt("Enter GitHub repository URL")
-        else:
-            local = click.prompt("Enter local repository path")
-
-    if url and local:
-        rprint("[red]Error: Provide only one of --url or --local[/red]")
+        rprint("[red]Provide either --url or --local[/red]")
         return
 
     source = url if url else local
-    cleanup_later = True if url else False
-
-    # 2. Load Repo
-    files = []
-    root_path = ""
-    loader = None
 
     with Progress() as progress:
-        task_load = progress.add_task("[cyan]Loading repository...", total=1)
+        task = progress.add_task("[cyan]Loading repository...", total=1)
         try:
-            loader_obj = RepoLoader(source)
-            files, root_path, loader = loader_obj.load()
-            progress.update(task_load, advance=1)
+            loader = RepoLoader(source)
+            files, root_path, loader_obj = loader.load()
         except Exception as e:
-            progress.update(task_load, advance=1)
             rprint(f"[red]Failed to load repository: {e}[/red]")
             return
+        progress.update(task, advance=1)
 
-    # 3. Summarize
+    documents = []
+    for f in files:
+        documents.append({
+            "content": f.page_content,
+            "metadata": f.metadata
+        })
+
+    tree, file_paths = extract_tree(root_path)
+
+    rprint("[cyan]Generating summaries...[/cyan]")
+
     summaries = []
-    with Progress() as progress:
-        task_sum = progress.add_task("[green]Summarizing files...", total=len(files))
-        for file in files:
-            try:
-                language = detect_lang(file.metadata.get("file_type", "text"))
-                summary = summarize_file(
-                    file_path=file.metadata["file_path"],
-                    language=language,
-                    content=file.page_content
-                )
-                summaries.append(summary)
-            except Exception as e:
-                pass
-            progress.update(task_sum, advance=1)
+    for doc in documents:
+        meta = doc["metadata"]
+        try:
+            lang = detect_lang(meta.get("file_type", "text"))
+            summary = summarize_file(
+                file_path=meta["file_path"],
+                language=lang,
+                content=doc["content"]
+            )
+            summaries.append(summary)
+        except Exception as e:
+            summaries.append(f"Error processing {meta.get('file_path')}: {e}")
 
-    # 4. Generate Readme
-    readme = ""
-    with Progress() as progress:
-        task_readme = progress.add_task("[magenta]Generating README...", total=2)
-        tree, file_paths = extract_tree(root_path)
-        progress.update(task_readme, advance=1)
-        
-        readme = generate_readme(
-            summaries=summaries,
-            tree_structure=tree,
-            file_paths=file_paths
-        )
-        progress.update(task_readme, advance=1)
+    rprint("[cyan]Generating README...[/cyan]")
 
-    # 5. Output Logic (The Fix)
+    readme = generate_readme(
+        summaries=summaries,
+        tree_structure=tree,
+        file_paths=file_paths
+    )
+
     if output is None:
-        rprint("\n[green]Printing README to console...[/green]\n")
+        rprint("\n[green]Generated README:[/green]\n")
         rprint(readme)
     else:
-        save_path = output
-        try:
-            with open(save_path, "w", encoding="utf-8") as f:
-                f.write(readme)
-            rprint(f"[green]✔ README saved to:[/green] [bold]{save_path}[/bold]")
-        except Exception as e:
-            rprint(f"[red]Failed to save README: {e}[/red]")
+        with open(output, "w", encoding="utf-8") as f:
+            f.write(readme)
+        rprint(f"[green]Saved to {output}[/green]")
 
-    if cleanup_later and loader:
-        loader.cleanup()
+
+@main.command()
+def reset():
+    """Reset stored API keys"""
+
+    if reset_api_keys():
+        rprint("[green]API keys reset successfully![/green]")
+        rprint("Run repo2readme again to reconfigure keys.")
+    else:
+        rprint("[yellow]No API key file found to reset.[/yellow]")
+
 
 if __name__ == "__main__":
     main()
+

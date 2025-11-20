@@ -11,7 +11,7 @@ def create_summarizer(file_path: str, language: str, text: str):
     model = ChatGroq(
         model="llama-3.1-8b-instant",
         api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2,
+        temperature=0.2, 
     )
 
     prompt = PromptTemplate(

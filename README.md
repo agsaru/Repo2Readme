@@ -1,192 +1,328 @@
-# 🚀 Repo2Readme
 
-## Generate High-Quality READMEs for Your Repositories with AI
+# Repo2Readme
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-0.1.0-green?style=for-the-badge)
-![Click](https://img.shields.io/badge/Click-4179C2?style=for-the-badge&logo=click&logoColor=white)
-![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white)
-![MIT License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)
+[![Python
+Version](https://img.shields.io/badge/python-3.9+-blue.svg)](h
+ttps://www.python.org/downloads/)
+[![License:
+MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LIC
+ENSE)
+[![GitHub
+Stars](https://img.shields.io/github/stars/your-username/Repo2
+Readme?style=social)](https://github.com/your-username/Repo2Re
+adme/stargazers)
+[![GitHub
+Forks](https://img.shields.io/github/forks/your-username/Repo2
+Readme?style=social)](https://github.com/your-username/Repo2Re
+adme/network/members)
 
-Repo2Readme is a powerful Python-based command-line interface (CLI) tool designed to effortlessly generate clean, polished, and professional `README.md` files for any GitHub or local repository. Leveraging advanced language models, it intelligently summarizes code, detects languages, and extracts repository structures to create comprehensive documentation, saving developers valuable time.
+Repo2Readme is a powerful Python-based command-line interface 
+(CLI) tool designed to effortlessly generate clean, polished, 
+and professional `README.md` files. Whether you're working    
+with a GitHub repository or a local project, Repo2Readme      
+streamlines documentation by automatically summarizing code   
+and structuring the project information.
 
-Whether you're starting a new project or need to document an existing one, Repo2Readme streamlines the process, ensuring your projects are well-explained and accessible.
+This tool aims to simplify the often tedious task of creating 
+comprehensive READMEs, allowing developers to focus more on   
+coding and less on manual documentation.
 
-## 📝 Table of Contents
+## 📖 Table of Contents
 
-*   [🚀 Features](#-features)
-*   [🛠️ Tech Stack](#%EF%B8%8F-tech-stack)
-*   [📂 Folder Structure](#-folder-structure)
-*   [⚙️ Installation](#%EF%B8%8F-installation)
-*   [💡 Usage](#-usage)
-*   [🔑 Configuration / Environment Variables](#-configuration--environment-variables)
-*   [🧠 How the Code Works](#-how-the-code-works)
-*   [🤝 Contributing](#-contributing)
-*   [📄 License](#-license)
-*   [🙏 Credits / Acknowledgements](#-credits--acknowledgements)
+- [✨ Key Features](#-key-features)
+- [🚀 Tech Stack](#-tech-stack)
+- [📁 Folder Structure](#-folder-structure)
+- [⚙️ Installation](#️-installation)
+- [💡 Configuration](#-configuration)
+- [▶️ Usage](#️-usage)
+- [🧠 How the Code Works](#-how-the-code-works)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+- (#-credits--acknowledgements)
 
-## 🚀 Features
+## ✨ Key Features
 
-Repo2Readme offers a range of features to automate and enhance your repository documentation:
+Repo2Readme provides a robust set of features to automate and 
+enhance your README generation process:
 
-*   **⚡ Automated README Generation**: Generates high-quality `README.md` files for both public GitHub repositories and local project folders.
-*   **🤖 AI-Powered Code Summarization**: Utilizes Language Models (LLMs) to summarize code files, functions, classes, and components, extracting key information.
-*   **🌐 Language Detection**: Automatically detects the programming language of files within the repository to provide accurate context.
-*   **🌳 Repository Tree Extraction**: Visualizes and extracts the hierarchical structure of your repository, including file paths.
-*   **✨ Structured Output**: Employs Pydantic schemas to ensure LLM outputs for code summaries are consistent and well-structured.
-*   **🖥️ User-Friendly CLI**: Built with `Click` and `Rich` for an intuitive and visually appealing command-line experience.
+-   **🌐 GitHub Repository Support**: Generate `README.md`    
+files directly from any public GitHub repository URL.
+-   **💻 Local Repository Support**: Create `README.md` files 
+for projects hosted on your local machine.
+-   **🔍 Intelligent Code Summarization**: Utilizes Language  
+Models (LLMs) to generate structured JSON summaries of        
+individual files.
+-   **🌳 Automatic Folder Structure Generation**: Visualizes  
+your project's directory hierarchy as a clear, readable tree  
+structure.
+-   **🗣️ Language Detection**: Automatically detects the      
+programming language of files to inform summarization.        
+-   **🧹 File Filtering**: Selectively include or exclude     
+files from the analysis to focus on relevant code.
+-   **🛡️ API Key Management**: Securely manage and reset API  
+keys for LLM services.
+-   **📝 Professional README Output**: Generates a clean,     
+polished, and well-structured `README.md` file, ready for     
+publishing.
 
-## 🛠️ Tech Stack
+## 🚀 Tech Stack
 
-This project is built using the following technologies:
+Repo2Readme is built with a modern Python tech stack,
+leveraging powerful libraries for robust functionality:       
 
-*   **Python**: 🐍 The core programming language for the entire application.
-*   **LangChain**: 🦜 Framework for developing applications powered by language models, used for orchestrating summarization and README generation.
-*   **Click**: ⚡ A Python package for creating beautiful command-line interfaces.
-*   **Rich**: 🌈 A Python library for rich text and beautiful formatting in the terminal.
-*   **Pydantic**: ✅ Data validation and settings management using Python type hints, crucial for defining structured data schemas.
-*   **Groq**: 🚀 (via `langchain-groq`) Used as a fast inference provider for language models.
-*   **Google GenAI**: 🧠 (via `langchain-google-genai`) Integration for Google's Generative AI models.
-*   **python-dotenv**: 🔐 Manages environment variables for API keys and configurations.
-*   **GitPython**: 📦 (Implicitly used via `langchain-community` loaders) A Python library to interact with Git repositories.
+-   **Python** 🐍: The core programming language.
+-   **Click** ⚡: For building the intuitive command-line     
+interface.
+-   **Rich** ✨: For beautiful terminal output and enhanced   
+user experience.
+-   **Pydantic** ✅: For data validation and settings
+management, especially for schema definitions.
+-   **LangChain** 🔗: Provides the framework for interacting  
+with Language Models.
+    -   **`langchain-groq`**: Integration with Groq for       
+high-performance LLM inference.
+    -   **`langchain-google-genai`**: Integration with        
+Google's Generative AI models.
+    -   **`langchain-community`**: For document loaders and   
+other community-contributed components.
+    -   **`langchain-core`**: Core components for prompts,    
+output parsers, etc.
+-   **python-dotenv** ⚙️: For loading environment variables   
+from `.env` files.
+-   **GitPython** 🐙: For interacting with Git repositories   
+programmatically.
+-   **os, json, tempfile, shutil, stat, typing** 🛠️: Standard 
+Python libraries for file system operations, data handling,   
+and type hinting.
 
-## 📂 Folder Structure
+## 📁 Folder Structure
+
+The repository follows a clear and organized structure:       
 
 ```
-./
-├── .gitignore
-├── LICENSE
-├── pyproject.toml
-├── README.md
-├── repo2readme/
-│   ├── cli/
-│   │   └── main.py
-│   ├── loaders/
-│   │   ├── loader.py
-│   │   └── repo_loader.py
-│   ├── readme/
-│   │   └── readme_generator.py
-│   ├── summerize/
-│   │   ├── schema.py
-│   │   └── summary_chain.py
-│   ├── utils/
-│   │   ├── detect_language.py
-│   │   ├── filter.py
-│   │   ├── force_remove.py
-│   │   └── tree.py
-└── repo2readme.egg-info/
-    └── PKG-INFO
+Repo2Readme/
+    ├── .gitignore
+    ├── LICENSE
+    ├── pyproject.toml
+    ├── README.md
+    ├── repo2readme/
+        ├── config.py
+        ├── cli/
+            ├── main.py
+        ├── loaders/
+            ├── loader.py
+            ├── repo_loader.py
+        ├── readme/
+            ├── readme_generator.py
+        ├── summerize/
+            ├── schema.py
+            ├── summary.py
+        ├── utils/
+            ├── detect_language.py
+            ├── filter.py
+            ├── force_remove.py
+            ├── tree.py
+    └── repo2readme.egg-info/
+        └── PKG-INFO
 ```
 
 ## ⚙️ Installation
 
-To get started with Repo2Readme, follow these simple steps:
+To get started with Repo2Readme, follow these simple steps:   
 
-1.  **Clone the repository (if not already local):**
+1.  **Clone the repository:**
+
     ```bash
-    git clone https://github.com/your-username/repo2readme.git
-    cd repo2readme
+    git clone https://github.com/your-username/Repo2Readme.git
+    cd Repo2Readme
     ```
 
-2.  **Create and activate a virtual environment:**
+2.  **Install dependencies:**
+
+    It is recommended to use a virtual environment.
+
+    Using `poetry` (recommended, as `pyproject.toml` is       
+present):
+
     ```bash
-    python -m venv .venv
-    # On macOS/Linux
-    source .venv/bin/activate
-    # On Windows
-    .venv\Scripts\activate
+    poetry install
+    poetry shell
     ```
 
-3.  **Install the project in editable mode with its dependencies:**
+    Alternatively, using `pip`:
+
     ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows:
+venv\Scripts\activate
     pip install -e .
     ```
 
-## 💡 Usage
+## 💡 Configuration
 
-Repo2Readme provides a straightforward command-line interface.
+Repo2Readme requires API keys for Language Model (LLM)        
+services to function. These are managed via environment       
+variables.
+
+1.  **Create a `.env` file:**
+    In the root directory of the project, create a file named 
+`.env`.
+
+2.  **Add your API keys:**
+    Populate the `.env` file with your Google Generative AI   
+API key (e.g., for Gemini) and/or Groq API key.
+
+    ```
+    GOOGLE_API_KEY="YOUR_GOOGLE_API_KEY"
+    GROQ_API_KEY="YOUR_GROQ_API_KEY"
+    ```
+
+    You can obtain these keys from the respective provider's  
+developer console.
+
+3.  **Reset API Keys (if needed):**
+    If you need to clear your stored API keys or encounter    
+issues, you can use the `reset` command:
+
+    ```bash
+    repo2readme reset
+    ```
+
+    This will delete the environment variables file, prompting
+you to re-enter keys on the next run if not provided via      
+`.env`.
+
+## ▶️ Usage
+
+Repo2Readme is a command-line tool. Here's how to use it:     
 
 ### Generate README for a GitHub Repository
 
-To generate a README for a public GitHub repository, provide its URL:
+To generate a `README.md` for a GitHub repository, provide its
+URL:
 
 ```bash
-repo2readme --url https://github.com/owner/repository-name --output README.md
+repo2readme run --url https://github.com/owner/repository     
+--output README.md
 ```
 
-*   `--url <repository_url>`: The URL of the GitHub repository.
-*   `--output <file_path>`: (Optional) Path to save the generated README file. Defaults to `README.md` in the current directory.
+-   `--url <github-url>`: The URL of the GitHub repository.   
+-   `--output <file-path>`: (Optional) The path to save the   
+generated README file. Defaults to `README.md` in the current 
+directory.
 
 ### Generate README for a Local Repository
 
-To generate a README for a local repository on your machine:
+To generate a `README.md` for a local repository, provide the 
+path to its directory:
 
 ```bash
-repo2readme --local /path/to/your/local/repo --output MY_PROJECT_README.md
+repo2readme run --local /path/to/your/local/repo --output     
+README.md
 ```
 
-*   `--local <local_path>`: The file path to your local repository.
-*   `--output <file_path>`: (Optional) Path to save the generated README file.
+-   `--local <path-to-repo>`: The path to your local
+repository.
+-   `--output <file-path>`: (Optional) The path to save the   
+generated README file. Defaults to `README.md` in the current 
+directory.
 
-## 🔑 Configuration / Environment Variables
+### Reset API Keys
 
-Repo2Readme uses environment variables to configure API keys for language models (e.g., Groq, Google GenAI).
+If you need to clear your stored API keys:
 
-Create a `.env` file in the root of your project directory (where you run the `repo2readme` command) and add your API keys:
-
-```dotenv
-GROQ_API_KEY="your_groq_api_key_here"
-GOOGLE_API_KEY="your_google_api_key_here"
+```bash
+repo2readme reset
 ```
-
-These variables are loaded using `python-dotenv` to securely access the necessary services.
 
 ## 🧠 How the Code Works
 
-Repo2Readme orchestrates a series of steps to intelligently generate a `README.md` file. Here's a breakdown of its internal workings:
+Repo2Readme operates through a series of modular components,  
+orchestrated to fetch repository data, analyze code, and      
+construct a comprehensive `README.md`.
 
-1.  **CLI Entry Point (`repo2readme/cli/main.py`)**:
-    *   The `main.py` script serves as the command-line interface entry point, powered by the `Click` library for parsing arguments (repository URL, local path, output file) and `Rich` for enhanced terminal output.
-    *   It coordinates the entire README generation workflow, from loading the repository to writing the final file.
+1.  **Entry Point (`repo2readme/cli/main.py`)**:
+    The `main.py` script serves as the command-line
+interface's entry point, defining the `run` and `reset`       
+commands using `click`. It orchestrates the entire process,   
+from loading repositories to generating the final README.     
 
-2.  **Repository Loading (`repo2readme/loaders/loader.py`, `repo2readme/loaders/repo_loader.py`)**:
-    *   The `loader.py` module defines classes like `LocalRepoLoader` and `UrlRepoLoader` to handle fetching repository content.
-    *   It contains `load` functions capable of processing either a local folder path or a remote Git clone URL, optionally specifying a branch.
-    *   Utilities for `get_repo_name` and `cleanup` (to remove temporary cloned repositories) are also provided, utilizing `langchain_community.document_loaders`, `os`, `tempfile`, `shutil`, `repo2readme.utils.filter`, and `repo2readme.utils.force_remove`.
+2.  **Configuration and API Key Management
+(`repo2readme/config.py`)**:
+    The `config.py` file is responsible for managing API keys.
+It handles loading environment variables from a JSON file (or 
+prompting the user for input) and saving them. The
+`get_api_keys` function retrieves necessary credentials, while
+`reset_api_keys` allows for clearing stored keys.
 
-3.  **Utility Functions (`repo2readme/utils/`)**:
-    *   **`detect_language.py`**: The `detect_lang` function identifies the programming language of a given file path, crucial for context-aware summarization.
-    *   **`filter.py`**: The `github_file_filter` function helps in selectively including or excluding files from the analysis, ensuring only relevant code is processed.
-    *   **`force_remove.py`**: This utility provides a `force_remove` function to handle file system cleanup, especially useful for dealing with permissions issues during temporary directory removal by `GitLoader`.
-    *   **`tree.py`**: Contains `generate_tree` to create a visual string representation of the directory structure and `extract_tree` to parse the repository's file hierarchy and return a tuple of the tree string and a list of file paths.
+3.  **Repository Loading (`repo2readme/loaders/loader.py`,    
+`repo2readme/loaders/repo_loader.py`)**:
+    The `loader.py` and `repo_loader.py` modules are designed 
+to load documents from both local and remote repositories.    
+`RepoLoader` acts as a facade, delegating to `UrlRepoLoader`  
+for GitHub URLs or `LocalRepoLoader` for local paths. These   
+loaders handle fetching repository content, preparing it for  
+analysis, and performing necessary cleanup operations (e.g.,  
+removing temporary directories).
 
-4.  **Code Summarization (`repo2readme/summerize/schema.py`, `repo2readme/summerize/summary_chain.py`)**:
-    *   **`schema.py`**: This file defines the Pydantic data models (`Param`, `FunctionSummary`, `CodeSummary`) used to structure the output of the LLM-based summarization. `CodeSummary` is the central model, capturing the file path, language, a short description, detected functions/classes, imports, and exports. It includes robust `field_validator` methods to normalize messy LLM outputs into consistent formats.
-    *   **`summary_chain.py`**: The `create_summarizer` and `summarize_file` functions are responsible for taking a file's content, language, and path, and using a Language Model (e.g., via `langchain_groq`) to generate a structured JSON summary that strictly adheres to the `CodeSummary` schema. It imports `langchain_core.prompts` and utilizes `dotenv` for configuration.
+4.  **Utility Functions (`repo2readme/utils/`)**:
+    This directory contains several helper utilities:
+    *   **`detect_language.py`**: The `detect_lang` function  
+identifies the programming language of a file based on its    
+extension, crucial for accurate summarization.
+    *   **`filter.py`**: Provides the `github_file_filter`    
+function, which allows for selectively including or excluding 
+files from the analysis, ensuring only relevant content is    
+processed.
+    *   **`force_remove.py`**: The `force_remove` function    
+handles file system cleanup by forcing read-only files to be  
+writable before removal, preventing permission errors during  
+temporary directory cleanup.
+    *   **`tree.py`**: Contains `generate_tree` to create a   
+visual string representation of the directory structure and   
+`extract_tree` to parse the repository's file hierarchy,      
+returning both the tree string and a list of file paths.      
 
-5.  **README Generation (`repo2readme/readme/readme_generator.py`)**:
-    *   The `readme_builder` and `generate_readme` functions take the comprehensive list of `CodeSummary` objects (one for each file), the extracted repository tree structure, and the list of file paths.
-    *   These functions then employ additional Language Models (e.g., `langchain_groq`, `langchain_google_genai`) and sophisticated prompting techniques to synthesize all the gathered information into a coherent, well-structured, and professional `README.md` file. It leverages `langchain_core.prompts` and `langchain_core.output_parsers`.
+5.  **Summarization (`repo2readme/summerize/schema.py`,       
+`repo2readme/summerize/summary.py`)**:
+    *   **`schema.py`**: Defines the data processing schema,  
+likely using Pydantic, to structure the output of file        
+summaries into a consistent format (`CodeSummary`,
+`FunctionSummary`, `Param`).
+    *   **`summary.py`**: Implements `create_summarizer` to   
+initialize a Language Model (LLM) and `summarize_file` to     
+generate structured JSON summaries of individual files. This  
+involves sending file content and language information to the 
+LLM and parsing its output according to the defined schema.   
 
-6.  **Project Metadata**:
-    *   **`.gitignore`**: Specifies files and directories that Git should ignore.
-    *   **`LICENSE`**: Details the MIT License under which the software is distributed, granting broad permissions for use, modification, and distribution.
-    *   **`pyproject.toml`**: Standard Python project configuration file, defining project metadata and build system requirements, including the entry point for the CLI (`repo2readme.cli.main`).
-    *   **`repo2readme.egg-info/PKG-INFO`**: Contains metadata about the package, generated during installation.
+6.  **README Generation
+(`repo2readme/readme/readme_generator.py`)**:
+    The `readme_generator.py` module is responsible for       
+assembling the final `README.md` file. It uses the
+`readme_builder` function to combine the gathered file        
+summaries, the repository's tree structure, and file paths    
+into a coherent and professional Markdown document. The       
+`generate_readme` function orchestrates this process,
+producing the complete README.
 
-The overall flow begins with the CLI, which loads the repository, processes each relevant file through language detection and summarization, gathers the repository structure, and finally uses an LLM to weave all this information into a complete `README.md`.
+In essence, Repo2Readme downloads or accesses a repository,   
+maps its structure, intelligently summarizes its constituent  
+files using LLMs, and then synthesizes all this information   
+into a well-organized and informative `README.md`.
 
 ## 🤝 Contributing
 
-We welcome contributions to Repo2Readme! If you have suggestions, bug reports, or want to contribute code, please feel free to:
+We welcome contributions to Repo2Readme! If you have
+suggestions for improvements, bug reports, or want to
+contribute code, please feel free to:
 
-1.  **Fork** the repository.
-2.  **Create a new branch** (`git checkout -b feature/your-feature-name`).
-3.  **Make your changes** and commit them (`git commit -m 'feat: Add new feature'`).
-4.  **Push** to your branch (`git push origin feature/your-feature-name`).
-5.  **Open a Pull Request** to the `main` branch.
-
-Please ensure your code adheres to the existing style and conventions.
+1.  **Fork the repository**.
+2.  **Create a new branch** for your feature or bug fix.      
+3.  **Make your changes** and ensure they adhere to the       
+project's coding style.
+4.  **Write clear, concise commit messages**.
+5.  **Submit a pull request** with a detailed description of  
+your changes.
 
 ## 📄 License
 
@@ -195,31 +331,43 @@ This project is licensed under the MIT License.
 ```
 MIT License
 
-Copyright (c) [Year] [Your Name or Project Name]
+Copyright (c) 2025 Sarowar Jahan Biswas
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person   
+obtaining a copy
+of this software and associated documentation files (the      
+"Software"), to deal
+in the Software without restriction, including without        
+limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, 
+and/or sell
+copies of the Software, and to permit persons to whom the     
+Software is
+furnished to do so, subject to the following conditions:      
 
-The above copyright notice and this permission notice shall be included in all
+The above copyright notice and this permission notice shall be
+included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY     
+KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF       
+MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO   
+EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES 
+OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 🙏 Credits / Acknowledgements
+## 🙏 Credits & Acknowledgements
 
-*   **LangChain**: For providing the powerful framework for LLM integrations.
-*   **Click** and **Rich**: For enabling a delightful command-line experience.
-*   **Pydantic**: For robust data validation and schema definition.
-*   **Groq** and **Google GenAI**: For providing the underlying language models.
-*   The open-source community for their invaluable tools and inspiration.
+-   Developed by Sarowar Jahan Biswas.
+-   Special thanks to the open-source community and the       
+developers of `Click`, `Rich`, `LangChain`, `Pydantic`,       
+`GitPython`, and other libraries that made this project       
+possible.

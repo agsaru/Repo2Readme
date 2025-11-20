@@ -1,5 +1,6 @@
 import os
-from .filter import github_file_filter
+from repo2readme.utils.filter import github_file_filter
+
 
 def generate_tree(root: str):
     tree_lines = []

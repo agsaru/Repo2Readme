@@ -5,10 +5,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo2readme"
-version = "0.1.0"
+version = "0.1.1"
 description = "Generate README.md from any GitHub or local repository"
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 
 authors = [
@@ -16,18 +17,21 @@ authors = [
 ]
 
 dependencies = [
-    "click",
-    "rich",
-    "langchain",
+    "click>=8.0",
+    "rich>=13.0",
+    "langchain>=0.1.0",
+    "GitPython>=3.1",
+    "langchain-groq>=0.1.0",
+    "langchain-google-genai>=0.1.0",
     "langchain-community",
-    "langchain-core",
-    "GitPython",
-    "langchain-groq",
-    "langchain-google-genai", 
-    "groq",
-    "python-dotenv"
+    "groq>=0.5.0",
+    "python-dotenv>=1.0.0",
+    "jsonpatch>=1.33,<2.0"
 ]
 
+[project.urls]
+Homepage = "https://github.com/agsaru/repo2readme"
+Repository = "https://github.com/agsaru/repo2readme"
 
 [project.scripts]
 repo2readme = "repo2readme.cli.main:main"
