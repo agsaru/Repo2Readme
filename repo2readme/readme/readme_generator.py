@@ -1,15 +1,21 @@
 # from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from typing import List
+def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str]):
+    model = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        api_key=os.getenv("GROQ_API_KEY"),
+        temperature=0.2, 
+    )
+    # api_key = os.getenv("GOOGLE_API_KEY")
+    # model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
 
-def readme_builder():
-    
-    api_key = os.getenv("GOOGLE_API_KEY")
-    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
     prompt = PromptTemplate(
     template="""
 You are an expert README Generator and a Markdown file Specialist.
@@ -27,6 +33,8 @@ Rules:
 ** File Summaries **  
 {summaries}
 
+Previous reviewer feedback (if any):
+{feedback}
 
 ---
 
@@ -70,17 +78,18 @@ Return ONLY valid Markdown
 
 
 """,
-    input_variables=["summaries", "tree_structure"]
+    input_variables=["summaries", "tree_structure","feedback"]
 )
 
 
     parser=StrOutputParser()
     chain=prompt|model| parser
-    return chain
-def generate_readme(summaries,tree_structure):
-    chain=readme_builder()
-    return chain.invoke({"summaries":summaries,"tree_structure":tree_structure})
-
+    response=chain.invoke({ 
+        "summaries": summaries,
+        "tree_structure": tree_structure,
+        "feedback": feedback
+        })
+    return response
 
 
 
