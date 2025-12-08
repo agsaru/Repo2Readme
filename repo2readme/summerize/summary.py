@@ -1,50 +1,67 @@
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
-from .schema import parser
 from dotenv import load_dotenv
 import os
+from langchain_core.output_parsers import JsonOutputParser
 
 load_dotenv()
 
 
-def create_summarizer(file_path: str, language: str, text: str):
+def create_summarizer(file_path: str, language: str, content: str):
     model = ChatGroq(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         api_key=os.getenv("GROQ_API_KEY"),
         temperature=0.2, 
     )
-
+    parser=JsonOutputParser()
     prompt = PromptTemplate(
-    template=r"""
-You are a senior software engineer. Read the source code and generate a JSON summary matching the required schema.
+        template="""
+You are an expert code analyst.
+Your task is generate a summary of the code that summary will help later to 
+generate a README.md file. 
+The code file can be in any programming language.So be careful about with which
+file type are you dealing with. 
 
-{format_instructions}
+Rules:
+- Do not hallucinate about the code.
+- Do not rewrite the code.
+- Do not lose the meaning of the code file.
+- Do not guess missing information.
 
-================ RULES ================
-- Output ONLY valid JSON.
-- Do NOT add explanations, commentary, or markdown.
-- Do NOT output the schema itself.
-- Do NOT wrap the JSON in backticks.
-- Do NOT hallucinate fields or values.
-- Use forward slashes `/` for all paths.
-- Follow the schema EXACTLY.
 
-================ WHAT TO EXTRACT ================
-- short_description: one sentence about the file.
-- functions: all functions/classes/methods/components.
-- params: parameter names or structured parameter objects.
-- returns: text or object, or null.
-- imports: modules/libraries used.
-- exports: exported symbols.
+Your summary MUST include:
+- File path 
+{file_path}
+- Purpose of the code in the file
+- If the line of code is less the summary will be short
+and the if the line of code is high the summary will be large.
+- The summary size will depend on the total line of codes
+- Add key functions, classes,what is the perpose of them
+- Important logic and algorithms
+- All the dependencies and intregrations with other files
+- Any configuration, environment varilables, or API usage
+- Also add the information if the code has any important portions
 
-================ PARAM RULES ================
-- If code shows parameter names only → return a list of names.
-- If code contains structured parameters → return a list of objects.
-- If no parameters → return null.
+Your returned JSON MUST contain at least:
+Your returned JSON MUST contain at least:
+{{
+  "file_path": "{file_path}",
+  "description": ""
+}}
 
-================ FILE CONTENT ================
+You MUST return a valid JSON object.
+Add other fields to the JSON ONLY if they are present in the code.
+
+Now summarize this code:
+
+File Path: {file_path}
+Language: {language}
+
+Code:
 {content}
-""",
+Return ONLY JSON.  
+{format_instructions}
+    """,
     input_variables=["file_path", "language", "content"],
     partial_variables={"format_instructions": parser.get_format_instructions()}
 )
@@ -54,10 +71,14 @@ You are a senior software engineer. Read the source code and generate a JSON sum
 
 
 def summarize_file(file_path: str, language: str, content: str):
-    chain = create_summarizer(file_path, language, content)
-    summary = chain.invoke({
-        "file_path": file_path.replace("\\", "/"),
-        "language": language,
-        "content": content.replace("\\", "/")
-    })
-    return summary
+    try:
+        chain = create_summarizer(file_path, language, content)
+        return chain.invoke({
+            "file_path": file_path.replace("\\", "/"),
+            "language": language,
+            "content": content
+        })
+    except Exception as e:
+        print(file_path)
+        print("SUMMARY ERROR:", e)
+        return {"file_path": file_path, "error": str(e)}

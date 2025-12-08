@@ -26,7 +26,6 @@ def generate_tree(root: str):
         for idx, file in enumerate(files):
             full = os.path.join(current_dir_path, file)
 
-            # Load only allowed files
             if not github_file_filter(full):
                 continue
 

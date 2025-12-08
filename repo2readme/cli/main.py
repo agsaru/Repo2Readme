@@ -7,7 +7,7 @@ from repo2readme.config import get_api_keys,reset_api_keys
 import os
 
 from repo2readme.loaders.repo_loader import RepoLoader
-from repo2readme.utils.tree import extract_tree
+from repo2readme.utils.tree import generate_tree
 
 from repo2readme.summerize.summary import summarize_file
 from repo2readme.readme.readme_generator import generate_readme
@@ -20,7 +20,7 @@ def main():
 @main.command()
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
-@click.option("--output", "-o", default=None,flag_value="README.md", help="Save README to file")
+@click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
 def run(url, local, output):
     groq_key, gemini_key = get_api_keys()
     os.environ["GROQ_API_KEY"] = groq_key
@@ -48,31 +48,34 @@ def run(url, local, output):
             "content": f.page_content,
             "metadata": f.metadata
         })
-
-    tree, file_paths = extract_tree(root_path)
-
-    rprint("[cyan]Generating summaries...[/cyan]")
+    tree= generate_tree(root_path)
 
     summaries = []
-    for doc in documents:
-        meta = doc["metadata"]
-        try:
-            lang = detect_lang(meta.get("file_type", "text"))
-            summary = summarize_file(
-                file_path=meta["file_path"],
-                language=lang,
-                content=doc["content"]
-            )
-            summaries.append(summary)
-        except Exception as e:
-            summaries.append(f"Error processing {meta.get('file_path')}: {e}")
+    errors=[]
+    total_documents=len(documents)
+    with Progress() as progress:
+        task=progress.add_task("[cyan]Generating summaries...[/cyan]",total= total_documents)
+        for doc in documents:
+            meta = doc["metadata"]
+            try:
+                lang = detect_lang(meta.get("file_type", "text"))
+                summary = summarize_file(
+                    file_path=meta["file_path"],
+                    language=lang,
+                    content=doc["content"]
+                )
+        
+                summaries.append(summary)
+            except Exception as e:
+              
+                errors.append(f"Error processing {meta.get('file_path')}: {e}")
+            progress.update(task,advance=1)
 
     rprint("[cyan]Generating README...[/cyan]")
 
     readme = generate_readme(
         summaries=summaries,
-        tree_structure=tree,
-        file_paths=file_paths
+        tree_structure=tree
     )
 
     if output is None:
@@ -97,4 +100,3 @@ def reset():
 
 if __name__ == "__main__":
     main()
-

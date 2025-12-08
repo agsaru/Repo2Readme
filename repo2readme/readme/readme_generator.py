@@ -12,68 +12,74 @@ def readme_builder():
     model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
     prompt = PromptTemplate(
     template="""
-You are an expert technical writer and a senior software engineer.
+You are an expert README Generator and a Markdown file Specialist.
+Your task is to generate a cleaned, well-structured, professinal README.md.
 
-Your task is to generate a clean, polished, and professional **README.md** 
-for this repository using the information provided below.
-
+Rules:
+- Do NOT hallucinate.
+- Do NOT invent any features, files, tech stack, on your own
+- If anypart do NOT have the efficient data avoid that part (do NOT write placeholders).
 ---
 
-### 📁 Repository Structure
+**Repository Structure**
 {tree_structure}
 
-### 📄 File Summaries
+** File Summaries **  
 {summaries}
 
-### 📂 All File Paths
-{file_paths}
 
 ---
 
-### ✅ What the README Must Include if only they are available dont make these sections if they are not available
+## README.md Requirements
+Generate a high-quality Github ready README.md file ** ONLY from the provided File Summaries.
 
+The README.md file may include these sections IF APPLICABLE (I mean IF AVAILABLE in the provided data):
 1. **Project Title**
-2. **Short Description** (2–4 clear, human-friendly lines)
+2. **Short Description**
+(2–4 clear human-friendly lines)
 3. **Table of Contents**
-4. **Tech Stack (with icons/emojis)** — ONLY for technologies actually present in the provided summaries/tree.
+4. **Tech Stack**
+(with emojis/icons; include ONLY technologies actually found in summaries or file paths)
 5. **Key Features**
-6. **Folder Structure** (use the exact provided tree)
-7. **Installation Instructions** (simple and readable)
-8. **Usage Examples** (with code blocks where needed)
-9. **Configuration / Environment Variables** (only if included in repo)
-10. **API Endpoints** (only if backend/server files exist)
-11. **How the Code Works** — summarize using *every* provided file summary
+6. **Folder Structure**
+(Use EXACTLY the provided tree structure)
+7. **Installation Instructions**
+8. **Usage Examples** 
+9. **Configuration / Environment Variables**  
+  (include ONLY if explicitly mentioned in any file summary)
+10. **API Endpoints**  
+(include ONLY if server/backend routes appear in summaries)
+11. **How the Code Works**  
+    (summarize using ALL file summaries)
 12. **Contributing Guidelines**
 13. **License**
 14. **Credits / Acknowledgements**
 
+You can add other sections if you think needed to add.
+And You can also change the sections name as per the summaries.
 ---
-
-### 📝 Requirements
-
-- Use clean and readable Markdown formatting.
-- Be beginner-friendly but professional.
-- Do **NOT** invent any files, folders, APIs, or concepts not explicitly provided.
-- Make minimal, reasonable assumptions only when absolutely necessary.
-- Ensure all explanations come directly from the repository summaries.
-- The README must be complete, self-contained, and GitHub-ready.
-- Use emojis/icons ONLY where appropriate (especially in Tech Stack, Features, and TOC).
-- Maintain a friendly, clear tone.
-
+** Additional Instructions **
+- Keep the README clean, well-structured, and professional.
+- Use emojis only where appropriate.
+- Ensure the README is production-ready.
+- After reading the README file any one must understand all about project.
+- Use simple, human-friendly language.
 ---
+** Now Generate the final README.md **
+Return ONLY valid Markdown
 
-### 🚀 Now generate the README.md:
+
 """,
-    input_variables=["summaries", "tree_structure", "file_paths"]
+    input_variables=["summaries", "tree_structure"]
 )
 
 
     parser=StrOutputParser()
     chain=prompt|model| parser
     return chain
-def generate_readme(summaries,tree_structure,file_paths):
+def generate_readme(summaries,tree_structure):
     chain=readme_builder()
-    return chain.invoke({"summaries":summaries,"tree_structure":tree_structure,"file_paths":file_paths})
+    return chain.invoke({"summaries":summaries,"tree_structure":tree_structure})
 
 
 
