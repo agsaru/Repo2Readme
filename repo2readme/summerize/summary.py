@@ -9,7 +9,7 @@ load_dotenv()
 
 def create_summarizer(file_path: str, language: str, content: str):
     model = ChatGroq(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-20b",
         api_key=os.getenv("GROQ_API_KEY"),
         temperature=0.2, 
     )
@@ -22,13 +22,21 @@ generate a README.md file.
 The code file can be in any programming language.So be careful about with which
 file type are you dealing with. 
 
-Rules:
-- Do not hallucinate about the code.
-- Do not rewrite the code.
-- Do not lose the meaning of the code file.
-- Do not guess missing information.
+---
+### RULES (STRICT)
+- Output MUST be valid JSON.
+- No code fences like ```json or ```.
+- No trailing commas.
+- No multiline strings. Use \\n instead.
+- Arrays may contain:
+  - simple strings
+  - or JSON objects {"name": "...", "description": "..."}
+- You may add ANY extra fields, but every value must be valid JSON.
+- DO NOT guess missing information.
+- DO NOT rewrite the code.
+- DO NOT hallucinate what the code doesn't contain.
 
-
+---
 Your summary MUST include:
 - File path 
 {file_path}
@@ -41,16 +49,18 @@ and the if the line of code is high the summary will be large.
 - All the dependencies and intregrations with other files
 - Any configuration, environment varilables, or API usage
 - Also add the information if the code has any important portions
+---
 
-Your returned JSON MUST contain at least:
+
 Your returned JSON MUST contain at least:
 {{
   "file_path": "{file_path}",
   "description": ""
 }}
 
-You MUST return a valid JSON object.
-Add other fields to the JSON ONLY if they are present in the code.
+
+You may include other fields if the code contains relevant information
+(e.g., functions, classes, logic, dependencies, configs, etc.)
 
 Now summarize this code:
 

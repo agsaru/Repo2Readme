@@ -10,9 +10,8 @@ from repo2readme.loaders.repo_loader import RepoLoader
 from repo2readme.utils.tree import generate_tree
 
 from repo2readme.summerize.summary import summarize_file
-from repo2readme.readme.readme_generator import generate_readme
 from repo2readme.utils.detect_language import detect_lang
-
+from repo2readme.readme.agent_workflow import workflow
 @click.group()
 def main():
     """readme cli"""
@@ -73,10 +72,16 @@ def run(url, local, output):
 
     rprint("[cyan]Generating README...[/cyan]")
 
-    readme = generate_readme(
-        summaries=summaries,
-        tree_structure=tree
-    )
+    initial_state={
+        "summaries":summaries,
+        "tree_structure":tree,
+        "iteration_no":0,
+        "max_iterations":3
+
+    }
+
+    final_state = workflow.invoke(initial_state)
+    readme=final_state['readme']
 
     if output is None:
         rprint("\n[green]Generated README:[/green]\n")
