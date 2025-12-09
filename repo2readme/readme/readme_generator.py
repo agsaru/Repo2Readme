@@ -1,4 +1,4 @@
-# from langchain_groq import ChatGroq
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 import os
@@ -8,13 +8,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from typing import List
 def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str]):
-    model = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2, 
-    )
-    # api_key = os.getenv("GOOGLE_API_KEY")
-    # model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+    api_key = os.getenv("GOOGLE_API_KEY")
+    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
 
     prompt = PromptTemplate(
     template="""
@@ -25,6 +20,7 @@ Rules:
 - Do NOT hallucinate.
 - Do NOT invent any features, files, tech stack, on your own
 - If anypart do NOT have the efficient data avoid that part (do NOT write placeholders).
+- Do not add any wrong information, broken links
 ---
 
 **Repository Structure**
@@ -68,7 +64,7 @@ And You can also change the sections name as per the summaries.
 ---
 ** Additional Instructions **
 - Keep the README clean, well-structured, and professional.
-- Use emojis only where appropriate.
+- Use emojis, svg icons, logos, badges, etc. for good looking README. (example: Programming Languages or framework or librarries icons)
 - Ensure the README is production-ready.
 - After reading the README file any one must understand all about project.
 - Use simple, human-friendly language.

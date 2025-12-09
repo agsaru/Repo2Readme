@@ -2,7 +2,6 @@ from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel,Field
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 
@@ -12,13 +11,8 @@ class ReviewSchema(BaseModel):
     feedback:str=Field(description="Actionable comment how to improve the README")
 
 def readme_reviewer(readme:str):
-    model = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2, 
-    )
-    # api_key = os.getenv("GOOGLE_API_KEY")
-    # model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+    api_key = os.getenv("GOOGLE_API_KEY")
+    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
     parser=PydanticOutputParser(pydantic_object=ReviewSchema)
     review_prompt=PromptTemplate(
         template="""

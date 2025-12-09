@@ -14,13 +14,20 @@ from repo2readme.utils.detect_language import detect_lang
 from repo2readme.readme.agent_workflow import workflow
 @click.group()
 def main():
-    """readme cli"""
+   """
+    Use the `run` command to generate a README.
+    Use the `reset` command to clear saved API keys.
+
+    Note: First run will ask for your API keys.
+    """
 
 @main.command()
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
 @click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
 def run(url, local, output):
+    """ Use --url for GitHub repo url and --local for local repo
+    """
     groq_key, gemini_key = get_api_keys()
     os.environ["GROQ_API_KEY"] = groq_key
     os.environ["GOOGLE_API_KEY"] = gemini_key
@@ -76,12 +83,14 @@ def run(url, local, output):
         "summaries":summaries,
         "tree_structure":tree,
         "iteration_no":0,
-        "max_iterations":3
+        "max_iterations":3,
+        'best_score':0.0,
+        "best_readme":""
 
     }
 
     final_state = workflow.invoke(initial_state)
-    readme=final_state['readme']
+    readme=final_state['best_readme']
 
     if output is None:
         rprint("\n[green]Generated README:[/green]\n")

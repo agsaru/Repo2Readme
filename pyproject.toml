@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo2readme"
-version = "0.1.2"
+version = "1.0.0"
 description = "Generate README.md from any GitHub or local repository"
 readme = "README.md"
 license = "MIT"
@@ -23,10 +23,9 @@ dependencies = [
     "GitPython>=3.1",
     "langchain-groq>=0.1.0",
     "langchain-google-genai>=0.1.0",
-    "langchain-community",
+    "langchain-community>=0.1.0",
     "groq>=0.5.0",
-    "python-dotenv>=1.0.0",
-    "jsonpatch>=1.33,<2.0"
+    "python-dotenv>=1.0.0"
 ]
 
 [project.urls]

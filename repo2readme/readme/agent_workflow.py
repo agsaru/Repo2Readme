@@ -1,5 +1,5 @@
 from langgraph.graph import StateGraph,START,END
-from typing import TypedDict,List,Annotated,Literal
+from typing import TypedDict,List,Annotated
 import operator
 from repo2readme.readme.readme_generator import generate_readme
 from repo2readme.readme.reviewer_agent import readme_reviewer
@@ -9,6 +9,8 @@ class ReadmeState(TypedDict):
     readme:Annotated[list[str],operator.add]
     score:Annotated[list[float],operator.add]
     feedback:Annotated[list[str],operator.add]
+    best_readme:str
+    best_score:float
     iteration_no:int
     max_iterations:int
 
@@ -18,17 +20,28 @@ def generate_readme_node(state:ReadmeState):
        tree_structure=state['tree_structure'],
        feedback=state['feedback']
     )
+    return {
+        'readme':[readme]
+    }
 def readme_reviewer_node(state:ReadmeState):
-    review=readme_reviewer(state['readme'])
+    latest_readme=state['readme'][-1]
+    review=readme_reviewer(latest_readme)
+    best_score=state['best_score']
+    best_readme=state['best_readme']
+    if review.score>best_score:
+        best_score=review.score
+        best_readme=latest_readme
 
     return {
         'score':[review.score],
         'feedback':[review.feedback],
-        'iteration_no':state['iteration_no']+1
+        'iteration_no':state['iteration_no']+1,
+        'best_score':best_score,
+        'best_readme':best_readme
         }
 
 def readme_condition(state:ReadmeState):
-    score=state['score']
+    score=state['score'][-1]
     max_iterations=state['max_iterations']
     iteration=state['iteration_no']
     if score>=9.0 or iteration>=max_iterations:
