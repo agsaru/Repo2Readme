@@ -21,6 +21,7 @@ IGNORE_FILES = {
     ".env.development",
     ".env.production",
     ".env.test",
+    ".gitignore",
 }
 
 IGNORE_EXTENSIONS = {

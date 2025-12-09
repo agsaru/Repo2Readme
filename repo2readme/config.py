@@ -26,12 +26,12 @@ def get_api_keys():
     if groq and gemini:
         return groq, gemini
 
-    rprint("[yellow]API keys are missing! Let's configure them.[/yellow]\n")
+    rprint("[yellow]API keys are missing! Let's add them.[/yellow]\n")
 
     if not groq:
-        groq = input("Enter Groq API key: ").strip()
+        groq = input("Enter your Groq API key: ").strip()
     if not gemini:
-        gemini = input("Enter Google Gemini API key: ").strip()
+        gemini = input("Enter your Google Gemini API key: ").strip()
 
     env["GROQ_API_KEY"] = groq
     env["GOOGLE_API_KEY"] = gemini

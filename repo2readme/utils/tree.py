@@ -7,7 +7,6 @@ def generate_tree(root: str):
 
     for current_dir_path, dirs, files in os.walk(root):
 
-        # Keep only dirs that are allowed to load
         dirs[:] = [
             d for d in dirs
             if github_file_filter(os.path.join(current_dir_path, d))

@@ -9,7 +9,7 @@ load_dotenv()
 
 def create_summarizer(file_path: str, language: str, content: str):
     model = ChatGroq(
-        model="openai/gpt-oss-20b",
+        model="openai/gpt-oss-120b",
         api_key=os.getenv("GROQ_API_KEY"),
         temperature=0.2, 
     )
@@ -30,7 +30,7 @@ file type are you dealing with.
 - No multiline strings. Use \\n instead.
 - Arrays may contain:
   - simple strings
-  - or JSON objects {"name": "...", "description": "..."}
+  - or JSON objects {{"name": "...", "description": "..."}}
 - You may add ANY extra fields, but every value must be valid JSON.
 - DO NOT guess missing information.
 - DO NOT rewrite the code.
