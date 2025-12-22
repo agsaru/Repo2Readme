@@ -1,18 +1,1 @@
-langchain
-langchain_core
-langchain-community
-langchain-google-genai
-langchain-groq
-groq
-
-
-
-rich
-
-pydantic
-# environment varilables
-python-dotenv
-
-GitPython
-# cli handling
-click
+-e .
