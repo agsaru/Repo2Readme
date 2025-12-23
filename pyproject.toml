@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo2readme"
-version = "1.0.0"
+version = "1.0.1"
 description = "Generate README.md from any GitHub or local repository"
 readme = "README.md"
 license = "MIT"

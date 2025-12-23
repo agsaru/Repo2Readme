@@ -15,10 +15,14 @@ class ReadmeState(TypedDict):
     max_iterations:int
 
 def generate_readme_node(state:ReadmeState):
+    latest_readme = (
+        state["readme"][-1] if state.get("readme") else ""
+    )
     readme=generate_readme(
        summaries=state['summaries'],
        tree_structure=state['tree_structure'],
-       feedback=state['feedback']
+       feedback=state['feedback'],
+       latest_readme=latest_readme
     )
     return {
         'readme':[readme]
@@ -44,7 +48,7 @@ def readme_condition(state:ReadmeState):
     score=state['score'][-1]
     max_iterations=state['max_iterations']
     iteration=state['iteration_no']
-    if score>=9.0 or iteration>=max_iterations:
+    if score>=8.5 or iteration>=max_iterations:
         return END
     else:
         return 'generate_readme'

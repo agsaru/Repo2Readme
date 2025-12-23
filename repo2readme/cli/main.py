@@ -84,6 +84,7 @@ def run(url, local, output):
         "tree_structure":tree,
         "iteration_no":0,
         "max_iterations":3,
+        "latest_readme":"",
         'best_score':0.0,
         "best_readme":""
 

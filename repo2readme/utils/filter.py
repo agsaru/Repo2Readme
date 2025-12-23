@@ -6,8 +6,8 @@ IGNORE_DIRS = {
     "build", "target", ".gradle", ".mvn",
     "bin", "obj", "packages", ".nuget",
     ".bundle", "vendor", "vendor/bundle",
-    "pkg", ".cargo",
-    ".git", ".idea", ".vscode", ".cache", "coverage", "logs", "dist", "out", "public"
+    "pkg", ".cargo",".firebase",
+    ".git", ".idea", ".vscode", ".cache", "coverage", "logs", "dist", "out", "public","src/generated/prisma"
 }
 
 IGNORE_FILES = {
