@@ -1,4 +1,3 @@
-
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 import os
@@ -7,7 +6,7 @@ load_dotenv()
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from typing import List
-def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str]):
+def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str):
     api_key = os.getenv("GOOGLE_API_KEY")
     model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
 
@@ -28,7 +27,8 @@ Rules:
 
 ** File Summaries **  
 {summaries}
-
+Previous Readme file:
+{latest_readme}
 Previous reviewer feedback (if any):
 {feedback}
 
@@ -64,17 +64,24 @@ And You can also change the sections name as per the summaries.
 ---
 ** Additional Instructions **
 - Keep the README clean, well-structured, and professional.
-- Use emojis, svg icons, logos, badges, etc. for good looking README. (example: Programming Languages or framework or librarries icons)
 - Ensure the README is production-ready.
 - After reading the README file any one must understand all about project.
 - Use simple, human-friendly language.
+- Do NOT include images, SVGs, logos, or badges unless a VALID HTTPS image URL is explicitly known.
+- Prefer plain text lists over icons if unsure.
+- Emojis are allowed ONLY in the Table of Contents, NOT in section headings.
+- Section headings MUST NOT contain emojis.
+- Table of Contents links MUST exactly match the section headings.
+- Do NOT generate broken links, placeholder images, or empty image tags.
+- If unsure about icons or badges, OMIT them completely.
+- Markdown must render correctly on GitHub.
 ---
 ** Now Generate the final README.md **
 Return ONLY valid Markdown
 
 
 """,
-    input_variables=["summaries", "tree_structure","feedback"]
+    input_variables=["summaries", "tree_structure","latest_readme","feedback"]
 )
 
 
@@ -83,6 +90,7 @@ Return ONLY valid Markdown
     response=chain.invoke({ 
         "summaries": summaries,
         "tree_structure": tree_structure,
+        "latest_readme":latest_readme,
         "feedback": feedback
         })
     return response
