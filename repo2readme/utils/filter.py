@@ -29,7 +29,7 @@ IGNORE_EXTENSIONS = {
     ".zip", ".tar", ".gz", ".jar", ".war", ".ear",
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico",".txt",
     ".log", ".lock", ".db", ".sqlite", ".pdf",
-    ".csv" ,".json",".ipynb"
+    ".csv" ,".json",".ipynb",".md"
 }
 
 
