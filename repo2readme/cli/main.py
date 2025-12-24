@@ -9,7 +9,7 @@ import os
 from repo2readme.loaders.repo_loader import RepoLoader
 from repo2readme.utils.tree import generate_tree
 
-from repo2readme.summerize.summary import summarize_file
+from repo2readme.summarize.summary import summarize_file
 from repo2readme.utils.detect_language import detect_lang
 from repo2readme.readme.agent_workflow import workflow
 @click.group()
