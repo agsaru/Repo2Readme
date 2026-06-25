@@ -1,4 +1,5 @@
 # repo2readme
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/repo2readme?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/repo2readme)
 
 Generate a professional `README.md` from any GitHub or local
 repository. This tool analyzes your project structure and file
