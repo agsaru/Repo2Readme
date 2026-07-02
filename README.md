@@ -229,6 +229,17 @@ loading and saving of API keys, prompting the user for input if
 necessary. Temporary directories created during remote repository      
 cloning are also safely cleaned up using `force_remove`.
 
+### Configurable File Filtering
+
+Repo2Readme uses default filters to skip generated files, build artifacts, lock files, images, archives, and other files that are usually not useful for README generation.
+
+You can include or exclude additional files using glob patterns:
+
+```bash
+repo2readme run --local ./my-project --include "package.json"
+repo2readme run --local ./my-project --exclude "tests/*"
+repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
+
 ## License
 
 This project is licensed under the MIT License.

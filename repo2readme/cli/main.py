@@ -19,7 +19,26 @@ def main():
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
 @click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
-def run(url, local, output):
+@click.option(
+    "--include",
+    "include_patterns",
+    multiple=True,
+    help="Glob pattern for files to include even if ignored by default. Can be used multiple times.",
+)
+@click.option(
+    "--exclude",
+    "exclude_patterns",
+    multiple=True,
+    help="Glob pattern for files to exclude. Can be used multiple times.",
+)
+@click.option(
+    "--max-file-size-kb",
+    default=200,
+    show_default=True,
+    type=int,
+    help="Maximum file size in KB to include during repository analysis.",
+)
+def run(url, local, output, include_patterns, exclude_patterns, max_file_size_kb):
     """ Use --url for GitHub repo url and --local for local repo
     """
     groq_key, gemini_key = get_api_keys()
@@ -39,7 +58,7 @@ def run(url, local, output):
     with Progress() as progress:
         task = progress.add_task("[cyan]Loading repository...", total=1)
         try:
-            loader = RepoLoader(source)
+            loader = RepoLoader(source,include_patterns=include_patterns,exclude_patterns=exclude_patterns,max_file_size_kb=max_file_size_kb,)
             files, root_path, loader_obj = loader.load()
         except Exception as e:
             rprint(f"[red]Failed to load repository: {e}[/red]")

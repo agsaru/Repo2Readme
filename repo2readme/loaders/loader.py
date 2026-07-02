@@ -2,11 +2,34 @@ import os
 import tempfile
 import shutil
 from langchain_community.document_loaders import TextLoader, GitLoader
+
 from repo2readme.utils.filter import github_file_filter
 from repo2readme.utils.force_remove import force_remove
+
+
 class LocalRepoLoader:
-    def __init__(self, folder_path: str):
+    def __init__(
+        self,
+        folder_path: str,
+        include_patterns=None,
+        exclude_patterns=None,
+        max_file_size_kb: int | None = 200,
+    ):
         self.folder_path = folder_path
+        self.include_patterns = include_patterns
+        self.exclude_patterns = exclude_patterns
+        self.max_file_size_kb = max_file_size_kb
+
+    def _should_include(self, path: str) -> bool:
+        relative_path = os.path.relpath(path, self.folder_path).replace("\\", "/")
+
+        return github_file_filter(
+            relative_path,
+            include_patterns=self.include_patterns,
+            exclude_patterns=self.exclude_patterns,
+            root_path=self.folder_path,
+            max_file_size_kb=self.max_file_size_kb,
+        )
 
     def load(self):
         if not os.path.exists(self.folder_path):
@@ -15,42 +38,72 @@ class LocalRepoLoader:
         docs = []
 
         for current, dirs, files in os.walk(self.folder_path):
-
             dirs[:] = [
-                d for d in dirs
-                if github_file_filter(os.path.join(current, d))
+                directory
+                for directory in dirs
+                if self._should_include(os.path.join(current, directory))
             ]
 
-            for f in files:
-                full = os.path.join(current, f)
+            for file_name in files:
+                full_path = os.path.join(current, file_name)
 
-                if not github_file_filter(full):
+                if not self._should_include(full_path):
                     continue
 
                 try:
-                    loader = TextLoader(full, encoding="utf-8")
-                    loaded_docs=loader.load()
+                    loader = TextLoader(full_path, encoding="utf-8")
+                    loaded_docs = loader.load()
+
                     for doc in loaded_docs:
-                        doc.metadata["file_path"] = full.replace("\\", "/")
-                        doc.metadata["file_name"] = f
-                        doc.metadata["file_type"] = os.path.splitext(f)[1].lower()
-                        doc.metadata["relative_path"] = os.path.relpath(full, self.folder_path).replace("\\", "/")
+                        doc.metadata["file_path"] = full_path.replace("\\", "/")
+                        doc.metadata["file_name"] = file_name
+                        doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
+                        doc.metadata["relative_path"] = os.path.relpath(
+                            full_path,
+                            self.folder_path,
+                        ).replace("\\", "/")
 
                     docs.extend(loaded_docs)
-                except Exception as e:
-                    print(f"[ERROR] Cannot load {full}: {e}")
+
+                except Exception as error:
+                    print(f"[ERROR] Cannot load {full_path}: {error}")
 
         return docs, self.folder_path
 
+
 class UrlRepoLoader:
-    def __init__(self, clone_url: str, branch: str = "main"):
+    def __init__(
+        self,
+        clone_url: str,
+        branch: str = "main",
+        include_patterns=None,
+        exclude_patterns=None,
+        max_file_size_kb: int | None = 200,
+    ):
         self.clone_url = clone_url
         self.branch = branch
+        self.include_patterns = include_patterns
+        self.exclude_patterns = exclude_patterns
+        self.max_file_size_kb = max_file_size_kb
         self.temp_dir = None
 
     def get_repo_name(self):
         name = self.clone_url.split("/")[-1]
         return name.replace(".git", "")
+
+    def _should_include(self, path: str) -> bool:
+        if self.temp_dir:
+            relative_path = os.path.relpath(path, self.temp_dir).replace("\\", "/")
+        else:
+            relative_path = path.replace("\\", "/")
+
+        return github_file_filter(
+            relative_path,
+            include_patterns=self.include_patterns,
+            exclude_patterns=self.exclude_patterns,
+            root_path=self.temp_dir,
+            max_file_size_kb=self.max_file_size_kb,
+        )
 
     def load(self):
         repo_name = self.get_repo_name()
@@ -66,10 +119,23 @@ class UrlRepoLoader:
             repo_path=self.temp_dir,
             clone_url=self.clone_url,
             branch=self.branch,
-            file_filter=github_file_filter 
+            file_filter=self._should_include,
         )
 
         docs = loader.load()
+
+        for doc in docs:
+            source = doc.metadata.get("source")
+
+            if source:
+                full_path = os.path.join(self.temp_dir, source)
+                normalized_full_path = full_path.replace("\\", "/")
+
+                doc.metadata["file_path"] = normalized_full_path
+                doc.metadata["file_name"] = os.path.basename(source)
+                doc.metadata["file_type"] = os.path.splitext(source)[1].lower()
+                doc.metadata["relative_path"] = source.replace("\\", "/")
+
         return docs, self.temp_dir
 
     def cleanup(self):
