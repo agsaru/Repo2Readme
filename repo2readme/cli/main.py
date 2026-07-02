@@ -18,8 +18,9 @@ def main():
 @main.command()
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
-@click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
-def run(url, local, output):
+@click.option("--output", "-o", default=None, type=click.Path(), help="Save README to file")
+@click.option("--force", "-f", is_flag=True, help="Overwrite output file without confirmation")
+def run(url, local, output, force):
     """ Use --url for GitHub repo url and --local for local repo
     """
     groq_key, gemini_key = get_api_keys()
@@ -95,8 +96,19 @@ def run(url, local, output):
         rprint("\n[green]Generated README:[/green]\n")
         rprint(readme)
     else:
+        if os.path.exists(output) and not force:
+            should_overwrite = click.confirm(
+                f"{output} already exists. Do you want to overwrite it?",
+                default=False,
+            )
+
+            if not should_overwrite:
+                rprint("[yellow]Output file was not overwritten.[/yellow]")
+                return
+
         with open(output, "w", encoding="utf-8") as f:
             f.write(readme)
+
         rprint(f"[green]Saved to {output}[/green]")
 
 
