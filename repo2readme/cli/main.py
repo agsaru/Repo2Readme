@@ -109,12 +109,6 @@ def run(url, local, output):
 
         rprint(f"[green]Saved to {output}[/green]")
 
-    with open(output, "w", encoding="utf-8") as f:
-        f.write(readme)
-
-    rprint(f"[green]Saved to {output}[/green]")
-
-
 @main.command()
 def reset():
     """Reset stored API keys"""
