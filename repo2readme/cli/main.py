@@ -1,3 +1,4 @@
+import os
 import click
 from rich import print as rprint
 from rich.progress import Progress
@@ -95,9 +96,23 @@ def run(url, local, output):
         rprint("\n[green]Generated README:[/green]\n")
         rprint(readme)
     else:
+        if os.path.exists(output):
+            if not click.confirm(
+                f"{output} already exists. Do you want to overwrite it?",
+                default=False
+        ):
+                rprint("[yellow]Operation cancelled.[/yellow]")
+                return
+
         with open(output, "w", encoding="utf-8") as f:
             f.write(readme)
+
         rprint(f"[green]Saved to {output}[/green]")
+
+    with open(output, "w", encoding="utf-8") as f:
+        f.write(readme)
+
+    rprint(f"[green]Saved to {output}[/green]")
 
 
 @main.command()
