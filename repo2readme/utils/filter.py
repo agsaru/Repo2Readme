@@ -171,7 +171,28 @@ def github_file_filter(
 
     explicitly_included = _matches_any(normalized_path, include_patterns)
 
-    if basename in PROTECTED_LARGE_FILES and not _matches_any(
+def _matches_protected_include(path: str, patterns: Iterable[str] | None) -> bool:
+    if not patterns:
+        return False
+
+    normalized_path = _normalize_path(path)
+    basename = os.path.basename(normalized_path)
+
+    for pattern in patterns:
+        normalized_pattern = _normalize_path(pattern)
+        if os.path.basename(normalized_pattern) != basename:
+            continue
+
+        if "/" not in normalized_pattern:
+            return True
+
+        if fnmatch.fnmatch(normalized_path, normalized_pattern):
+            return True
+
+    return False
+
+
+    if basename in PROTECTED_LARGE_FILES and not _matches_protected_include(
         normalized_path,
         include_patterns,
     ):
