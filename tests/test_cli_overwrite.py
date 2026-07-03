@@ -1,6 +1,9 @@
+import importlib
+
 from click.testing import CliRunner
 
-from repo2readme.cli.main import main
+
+cli_main = importlib.import_module("repo2readme.cli.main")
 
 
 def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path):
@@ -21,13 +24,13 @@ def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path
         def invoke(self, state):
             return {"best_readme": "new generated content"}
 
-    monkeypatch.setattr("repo2readme.cli.main.get_api_keys", fake_get_api_keys)
+    monkeypatch.setattr(cli_main, "get_api_keys", fake_get_api_keys)
     monkeypatch.setattr("repo2readme.loaders.repo_loader.RepoLoader", FakeRepoLoader)
     monkeypatch.setattr("repo2readme.readme.agent_workflow.workflow", FakeWorkflow())
 
     runner = CliRunner()
     result = runner.invoke(
-        main,
+        cli_main.main,
         ["run", "--local", str(tmp_path), "--output", str(output_file)],
         input="\n",
     )
@@ -55,13 +58,13 @@ def test_output_file_is_overwritten_when_user_confirms(monkeypatch, tmp_path):
         def invoke(self, state):
             return {"best_readme": "new generated content"}
 
-    monkeypatch.setattr("repo2readme.cli.main.get_api_keys", fake_get_api_keys)
+    monkeypatch.setattr(cli_main, "get_api_keys", fake_get_api_keys)
     monkeypatch.setattr("repo2readme.loaders.repo_loader.RepoLoader", FakeRepoLoader)
     monkeypatch.setattr("repo2readme.readme.agent_workflow.workflow", FakeWorkflow())
 
     runner = CliRunner()
     result = runner.invoke(
-        main,
+        cli_main.main,
         ["run", "--local", str(tmp_path), "--output", str(output_file)],
         input="y\n",
     )
@@ -89,13 +92,13 @@ def test_output_file_is_overwritten_with_force(monkeypatch, tmp_path):
         def invoke(self, state):
             return {"best_readme": "new generated content"}
 
-    monkeypatch.setattr("repo2readme.cli.main.get_api_keys", fake_get_api_keys)
+    monkeypatch.setattr(cli_main, "get_api_keys", fake_get_api_keys)
     monkeypatch.setattr("repo2readme.loaders.repo_loader.RepoLoader", FakeRepoLoader)
     monkeypatch.setattr("repo2readme.readme.agent_workflow.workflow", FakeWorkflow())
 
     runner = CliRunner()
     result = runner.invoke(
-        main,
+        cli_main.main,
         [
             "run",
             "--local",
