@@ -19,26 +19,9 @@ def main():
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
 @click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
-@click.option(
-    "--include",
-    "include_patterns",
-    multiple=True,
-    help="Glob pattern for files to include even if ignored by default. Can be used multiple times.",
-)
-@click.option(
-    "--exclude",
-    "exclude_patterns",
-    multiple=True,
-    help="Glob pattern for files to exclude. Can be used multiple times.",
-)
-@click.option(
-    "--max-file-size-kb",
-    default=200,
-    show_default=True,
-    type=int,
-    help="Maximum file size in KB to include during repository analysis.",
-)
-def run(url, local, output, include_patterns, exclude_patterns, max_file_size_kb):
+@click.option("--output", "-o", default=None, type=click.Path(), help="Save README to file")
+@click.option("--force", "-f", is_flag=True, help="Overwrite output file without confirmation")
+def run(url, local, output, force):
     """ Use --url for GitHub repo url and --local for local repo
     """
     groq_key, gemini_key = get_api_keys()
@@ -114,8 +97,19 @@ def run(url, local, output, include_patterns, exclude_patterns, max_file_size_kb
         rprint("\n[green]Generated README:[/green]\n")
         rprint(readme)
     else:
+        if os.path.exists(output) and not force:
+            should_overwrite = click.confirm(
+                f"{output} already exists. Do you want to overwrite it?",
+                default=False,
+            )
+
+            if not should_overwrite:
+                rprint("[yellow]Output file was not overwritten.[/yellow]")
+                return
+
         with open(output, "w", encoding="utf-8") as f:
             f.write(readme)
+
         rprint(f"[green]Saved to {output}[/green]")
 
 
