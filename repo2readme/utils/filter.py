@@ -88,7 +88,6 @@ IGNORE_EXTENSIONS = {
     ".ipynb",
 }
 
-# Files that are usually huge/generated and should not be re-included by broad patterns.
 PROTECTED_LARGE_FILES = {
     "package-lock.json",
     "yarn.lock",
@@ -114,6 +113,33 @@ def _matches_any(path: str, patterns: Iterable[str] | None) -> bool:
             return True
 
         if fnmatch.fnmatch(basename, normalized_pattern):
+            return True
+
+    return False
+
+
+def _matches_protected_include(path: str, patterns: Iterable[str] | None) -> bool:
+    """
+    Prevent broad patterns like '*.json' from accidentally including large lock files.
+    A protected file should only be included if the user names that exact file.
+    """
+    if not patterns:
+        return False
+
+    normalized_path = _normalize_path(path)
+    basename = os.path.basename(normalized_path)
+
+    for pattern in patterns:
+        normalized_pattern = _normalize_path(pattern)
+        pattern_basename = os.path.basename(normalized_pattern)
+
+        if pattern_basename != basename:
+            continue
+
+        if "/" not in normalized_pattern:
+            return True
+
+        if fnmatch.fnmatch(normalized_path, normalized_pattern):
             return True
 
     return False
@@ -152,7 +178,6 @@ def is_file_size_allowed(
     try:
         return file_path.stat().st_size <= max_file_size_kb * 1024
     except OSError:
-        # If size cannot be checked, keep old behavior and do not block only on size.
         return True
 
 
@@ -171,37 +196,22 @@ def github_file_filter(
 
     explicitly_included = _matches_any(normalized_path, include_patterns)
 
-def _matches_protected_include(path: str, patterns: Iterable[str] | None) -> bool:
-    if not patterns:
-        return False
-
-    normalized_path = _normalize_path(path)
-    basename = os.path.basename(normalized_path)
-
-    for pattern in patterns:
-        normalized_pattern = _normalize_path(pattern)
-        if os.path.basename(normalized_pattern) != basename:
-            continue
-
-        if "/" not in normalized_pattern:
-            return True
-
-        if fnmatch.fnmatch(normalized_path, normalized_pattern):
-            return True
-
-    return False
-
-
-    if basename in PROTECTED_LARGE_FILES and not _matches_protected_include(
-        normalized_path,
-        include_patterns,
-    ):
-        return False
+    if basename in PROTECTED_LARGE_FILES:
+        if not _matches_protected_include(normalized_path, include_patterns):
+            return False
 
     if explicitly_included:
-        return is_file_size_allowed(path, root_path, max_file_size_kb)
+        return is_file_size_allowed(
+            path,
+            root_path=root_path,
+            max_file_size_kb=max_file_size_kb,
+        )
 
     if is_default_ignored(path):
         return False
 
-    return is_file_size_allowed(path, root_path, max_file_size_kb)
+    return is_file_size_allowed(
+        path,
+        root_path=root_path,
+        max_file_size_kb=max_file_size_kb,
+    )

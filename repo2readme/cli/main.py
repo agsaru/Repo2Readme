@@ -18,7 +18,6 @@ def main():
 @main.command()
 @click.option("--url", "-u", help="GitHub repo URL")
 @click.option("--local", "-l", help="Local repo path")
-@click.option("--output", "-o", default=None,type=click.Path(),flag_value="README.md", help="Save README to file")
 @click.option("--output", "-o", default=None, type=click.Path(), help="Save README to file")
 @click.option("--force", "-f", is_flag=True, help="Overwrite output file without confirmation")
 @click.option(
@@ -40,7 +39,7 @@ def main():
     type=int,
     help="Maximum file size in KB to include during repository analysis.",
 )
-def run(url, local, output, include_patterns, exclude_patterns, max_file_size_kb):
+def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb):
     """ Use --url for GitHub repo url and --local for local repo
     """
     groq_key, gemini_key = get_api_keys()

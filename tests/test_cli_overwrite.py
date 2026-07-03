@@ -14,7 +14,7 @@ def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path
         return "fake_groq_key", "fake_gemini_key"
 
     class FakeRepoLoader:
-        def __init__(self, source):
+        def __init__(self, source, *args, **kwargs):
             self.source = source
 
         def load(self):
@@ -48,7 +48,7 @@ def test_output_file_is_overwritten_when_user_confirms(monkeypatch, tmp_path):
         return "fake_groq_key", "fake_gemini_key"
 
     class FakeRepoLoader:
-        def __init__(self, source):
+        def __init__(self, source, *args, **kwargs):
             self.source = source
 
         def load(self):
@@ -82,7 +82,7 @@ def test_output_file_is_overwritten_with_force(monkeypatch, tmp_path):
         return "fake_groq_key", "fake_gemini_key"
 
     class FakeRepoLoader:
-        def __init__(self, source):
+        def __init__(self, source, *args, **kwargs):
             self.source = source
 
         def load(self):
