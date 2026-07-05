@@ -169,12 +169,6 @@ repo2readme run --local ./path/to/your/repo --dry-run
 
 Output example:
 ```
-Repository Analysis
-
-Files selected     : 45
-Estimated tokens   : ~120,000
-Request size       : ~420.5 KB
-
 Repository Tree
 
 project/
@@ -188,6 +182,12 @@ Files to be processed
 ✓ src/api.py
 ✓ tests/test_api.py
 ...
+
+Repository Analysis
+
+Files selected     : 45
+Estimated tokens   : ~120,000
+Request size       : ~420.5 KB
 
 Dry run complete.
 No API requests were made.
