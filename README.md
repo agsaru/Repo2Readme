@@ -16,6 +16,7 @@ comprehensive and informative README.
 *   [Usage](#usage)
 *   [Configuration](#configuration)
 *   [How It Works](#how-it-works)
+*   [Contributing](#contributing)
 *   [License](#license)
 
 ## About the Project
@@ -239,6 +240,17 @@ You can include or exclude additional files using glob patterns:
 repo2readme run --local ./my-project --include "package.json"
 repo2readme run --local ./my-project --exclude "tests/*"
 repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
+```
+...
+
+## Contributing
+
+Contributions are welcome! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
+
+Before contributing, please read our [Contributing Guide](CONTRIBUTING.md) for details on setting up the project, coding standards, and the pull request process.
+
+By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+
 
 ## License
 
