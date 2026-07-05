@@ -137,8 +137,61 @@ repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
 **Options:**
 *   `-u`, `--url <URL>`: GitHub repository URL to process.
 *   `-l`, `--local <PATH>`: Path to a local repository.
-*   `-o`, `--output <FILE_PATH>`: File path to save the generated      
-README (defaults to `README.md`).
+*   `-o`, `--output <FILE_PATH>`: File path to save the generated README (defaults to `README.md`).
+*   `-f`, `--force`: Overwrite the output file and bypass the token estimation confirmation prompt without confirmation.
+*   `--dry-run`: Preview the analysis without making any API calls (runs local analysis, generates the repository tree, estimates token count, and prints the list of files to be processed).
+
+### 🛡️ Token Estimation and Warnings
+
+Running the tool on a repository can consume a significant number of LLM API tokens. To prevent accidental quota exhaustion and unexpected costs:
+
+1. **Before any API calls are made**, `repo2readme` estimates the number of files, token count, and total request size.
+2. If running interactively, the tool displays this analysis and prompts the user for confirmation:
+   ```
+   Repository Analysis
+
+   Files to summarize : 45
+   Estimated tokens   : ~120,000
+   Request size       : ~420.5 KB
+
+   Proceed? [y/N]
+   ```
+3. If confirmed, the tool retrieves API keys and begins summarization. Otherwise, it exits gracefully.
+4. If `--force` is used, the confirmation prompt is automatically bypassed.
+
+### 🔍 Dry Run Mode
+
+You can run `repo2readme` in `--dry-run` mode to preview the analysis, view the estimated tokens, and verify your include/exclude filters without making any LLM requests or requiring API keys:
+
+```bash
+repo2readme run --local ./path/to/your/repo --dry-run
+```
+
+Output example:
+```
+Repository Analysis
+
+Files selected     : 45
+Estimated tokens   : ~120,000
+Request size       : ~420.5 KB
+
+Repository Tree
+
+project/
+├── src/
+├── tests/
+└── README.md
+
+Files to be processed
+
+✓ src/main.py
+✓ src/api.py
+✓ tests/test_api.py
+...
+
+Dry run complete.
+No API requests were made.
+```
 
 ### 2. Reset API Keys
 

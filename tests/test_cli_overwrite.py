@@ -32,7 +32,7 @@ def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path
     result = runner.invoke(
         cli_main.main,
         ["run", "--local", str(tmp_path), "--output", str(output_file)],
-        input="\n",
+        input="y\nn\n",
     )
 
     assert result.exit_code == 0
@@ -66,7 +66,7 @@ def test_output_file_is_overwritten_when_user_confirms(monkeypatch, tmp_path):
     result = runner.invoke(
         cli_main.main,
         ["run", "--local", str(tmp_path), "--output", str(output_file)],
-        input="y\n",
+        input="y\ny\n",
     )
 
     assert result.exit_code == 0

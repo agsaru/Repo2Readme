@@ -39,13 +39,14 @@ def main():
     type=int,
     help="Maximum file size in KB to include during repository analysis.",
 )
-def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb):
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview the analysis without making any API calls.",
+)
+def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run):
     """ Use --url for GitHub repo url and --local for local repo
     """
-    groq_key, gemini_key = get_api_keys()
-    os.environ["GROQ_API_KEY"] = groq_key
-    os.environ["GOOGLE_API_KEY"] = gemini_key
-
     if not url and not local:
         rprint("[red]Provide either --url or --local[/red]")
         return
@@ -53,8 +54,6 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
     source = url if url else local
     
     from repo2readme.loaders.repo_loader import RepoLoader
-    from repo2readme.summarize.summary import summarize_file
-    from repo2readme.readme.agent_workflow import workflow
 
     with Progress() as progress:
         task = progress.add_task("[cyan]Loading repository...", total=1)
@@ -74,9 +73,66 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
         })
     tree= generate_tree(root_path)
 
+    # Estimate token count (roughly 3 characters per token)
+    estimated_tokens = sum(max(1, len(doc["content"]) // 3) for doc in documents)
+    total_size_bytes = sum(len(doc["content"].encode("utf-8")) for doc in documents)
+    total_documents = len(documents)
+
+    def format_size(size_bytes):
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        else:
+            return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+    if dry_run:
+        rprint("\n[bold]Repository Analysis[/bold]\n")
+        rprint(f"Files selected     : {total_documents}")
+        rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
+        rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+        rprint("\n[bold]Repository Tree[/bold]\n")
+        rprint(tree)
+        rprint("\n[bold]Files to be processed[/bold]\n")
+        for doc in documents:
+            rel_path = doc["metadata"].get("relative_path", "")
+            rprint(f"✓ [green]{rel_path}[/green]")
+        rprint("\n[green]Dry run complete.[/green]")
+        rprint("[yellow]No API requests were made.[/yellow]")
+        if hasattr(loader_obj, "cleanup"):
+            loader_obj.cleanup()
+        return
+
+    # Normal execution: print estimation first
+    rprint("\n[bold]Repository Analysis[/bold]\n")
+    rprint(f"Files to summarize : {total_documents}")
+    rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
+    rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+
+    if not force:
+        proceed = click.confirm("\nProceed?", default=False)
+        if not proceed:
+            rprint("[yellow]Operation cancelled.[/yellow]")
+            if hasattr(loader_obj, "cleanup"):
+                loader_obj.cleanup()
+            return
+
+    # Now get API keys and setup environment since we are proceeding to make API calls
+    try:
+        groq_key, gemini_key = get_api_keys()
+        os.environ["GROQ_API_KEY"] = groq_key
+        os.environ["GOOGLE_API_KEY"] = gemini_key
+    except Exception as e:
+        rprint(f"[red]Failed to configure API keys: {e}[/red]")
+        if hasattr(loader_obj, "cleanup"):
+            loader_obj.cleanup()
+        return
+
+    from repo2readme.summarize.summary import summarize_file
+    from repo2readme.readme.agent_workflow import workflow
+
     summaries = []
     errors=[]
-    total_documents=len(documents)
     with Progress() as progress:
         task=progress.add_task("[cyan]Generating summaries...[/cyan]",total= total_documents)
         for doc in documents:
@@ -110,6 +166,9 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
 
     final_state = workflow.invoke(initial_state)
     readme=final_state['best_readme']
+
+    if hasattr(loader_obj, "cleanup"):
+        loader_obj.cleanup()
 
     if output is None:
         rprint("\n[green]Generated README:[/green]\n")
