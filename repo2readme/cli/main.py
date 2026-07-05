@@ -87,16 +87,17 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             return f"{size_bytes / (1024 * 1024):.1f} MB"
 
     if dry_run:
-        rprint("\n[bold]Repository Analysis[/bold]\n")
-        rprint(f"Files selected     : {total_documents}")
-        rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
-        rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+        
         rprint("\n[bold]Repository Tree[/bold]\n")
         rprint(tree)
         rprint("\n[bold]Files to be processed[/bold]\n")
         for doc in documents:
             rel_path = doc["metadata"].get("relative_path", "")
             rprint(f"✓ [green]{rel_path}[/green]")
+        rprint("\n[bold]Repository Analysis[/bold]\n")
+        rprint(f"Files selected     : {total_documents}")
+        rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
+        rprint(f"Request size       : ~{format_size(total_size_bytes)}")
         rprint("\n[green]Dry run complete.[/green]")
         rprint("[yellow]No API requests were made.[/yellow]")
         if hasattr(loader_obj, "cleanup"):

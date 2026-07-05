@@ -42,6 +42,7 @@ IGNORE_DIRS = {
     "out",
     "public",
     "src/generated/prisma",
+    "*.egg-info/",
 }
 
 IGNORE_FILES = {
@@ -158,10 +159,17 @@ def is_default_ignored(path: str) -> bool:
         return True
 
     padded_path = f"/{normalized_path}/"
+    path_parts = normalized_path.split("/")
+    
     for directory in IGNORE_DIRS:
         normalized_dir = _normalize_path(directory)
-        if f"/{normalized_dir}/" in padded_path:
-            return True
+        if "*" in normalized_dir:
+            clean_dir_pattern = normalized_dir.rstrip("/")
+            if any(fnmatch.fnmatch(part, clean_dir_pattern) for part in path_parts):
+                return True
+        else:
+            if f"/{normalized_dir}/" in padded_path:
+                return True
 
     return False
 
