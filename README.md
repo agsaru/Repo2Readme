@@ -1,23 +1,45 @@
 # repo2readme
+
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![PyPI](https://img.shields.io/pypi/v/repo2readme)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/repo2readme?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/repo2readme)
 
-Generate a professional `README.md` from any GitHub or local
-repository. This tool analyzes your project structure and file
-contents, then leverages AI models to intelligently craft a
-comprehensive and informative README.
+Generate high-quality, AI-powered `README.md` files from GitHub or local repositories with a single command.
+
+This tool analyzes your project structure and source files, summarizes them using AI, and automatically generates a comprehensive, well-structured, and professional `README.md`.
 
 ## 🌟 Table of Contents
 
-*   [About the Project](#about-the-project)
-*   [Tech Stack](#tech-stack)
-*   [Key Features](#key-features)
-*   [Folder Structure](#folder-structure)
-*   [Installation](#installation)
-*   [Usage](#usage)
-*   [Configuration](#configuration)
-*   [How It Works](#how-it-works)
-*   [Contributing](#contributing)
-*   [License](#license)
+* [About the Project](#about-the-project)
+* [Tech Stack](#tech-stack)
+* [Key Features](#key-features)
+* [Folder Structure](#folder-structure)
+* [Installation](#installation)
+* [Quick Start](#quick-start)
+* [Usage](#usage)
+* [Configuration](#configuration)
+* [How It Works](#how-it-works)
+* [Frequently Asked Questions](#frequently-asked-questions)
+* [Troubleshooting](#troubleshooting)
+* [Contributing](#contributing)
+* [License](#license)
+
+## ✨ Demo
+
+Generate a README from GitHub:
+
+```bash
+repo2readme run --url https://github.com/agsaru/repo2readme
+```
+
+Generate a README from a local project:
+
+```bash
+repo2readme run --local ./my-project
+```
 
 ## About the Project
 
@@ -28,6 +50,14 @@ iteratively generates and refines a `README` using advanced AI agents.
 Whether your project is hosted on GitHub or resides locally,
 `repo2readme` streamlines documentation, ensuring your projects are    
 well-explained and easily understood.
+
+## Why Repo2Readme?
+
+- 🤖 AI-powered README generation
+- 📂 Works with both GitHub and local repositories
+- ⚡ Fast file summarization using Groq
+- ✨ Iterative README refinement using Gemini
+- 🛠️ Simple CLI with minimal setup
 
 ## Tech Stack
 
@@ -91,7 +121,7 @@ Repo2Readme/
             ├── agent_workflow.py
             ├── readme_generator.py
             ├── reviewer_agent.py
-        ├── summerize/
+        ├── summarize/
             ├── summary.py
         ├── utils/
             ├── detect_language.py
@@ -114,6 +144,30 @@ To install `repo2readme`, you need Python 3.10 or higher.
     ```bash
     pip install repo2readme
     ```
+
+## 🚀 Quick Start
+
+Get started with Repo2Readme in just a few steps.
+
+### Install
+
+```bash
+pip install -U repo2readme
+```
+
+### Generate a README from a GitHub Repository
+
+```bash
+repo2readme run --url https://github.com/agsaru/repo2readme
+```
+
+### Generate a README from a local Repository
+
+```bash
+repo2readme run --local ./my-project
+```
+
+The generated README will be saved as `README.md` unless another output file is specified.
 
 ## Usage
 
@@ -226,6 +280,9 @@ Alternatively, you can set these as system environment variables:
 export GROQ_API_KEY="your_groq_api_key"
 export GOOGLE_API_KEY="your_google_api_key"
 ```
+### Verify API Keys
+
+Before running Repo2Readme, ensure both `GROQ_API_KEY` and `GOOGLE_API_KEY` are configured correctly. Missing or invalid API keys may prevent successful README generation.
 
 ## How It Works
 
@@ -296,6 +353,60 @@ repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
 ```
 ...
 
+## ❓ Frequently Asked Questions
+
+### Does Repo2Readme support local repositories?
+
+Yes. Repo2Readme supports both local repositories and GitHub repositories.
+
+### Are API keys required?
+
+Yes. Google Gemini and Groq API keys are required.
+
+### Can I preview the analysis without using API credits?
+
+Yes.
+
+```bash
+repo2readme run --local ./my-project --dry-run
+```
+
+### Which Python version is required?
+
+Python 3.10 or later.
+
+## 🛠 Troubleshooting
+
+### Command not found
+
+Ensure Repo2Readme is installed correctly.
+
+```bash
+pip install repo2readme
+```
+
+### Invalid API Key
+
+Verify that your `GROQ_API_KEY` and `GOOGLE_API_KEY` are valid and configured correctly.
+
+### Repository not found
+
+Ensure the GitHub URL or local repository path is correct.
+
+### Permission denied
+
+Ensure you have permission to access the repository.
+
+## 🚀 Roadmap
+
+- [x] GitHub repository support
+- [x] Local repository support
+- [x] AI-powered README generation
+- [x] Dry-run mode
+- [ ] Multi-language README generation
+- [ ] Custom README templates
+- [ ] GitLab support
+
 ## Contributing
 
 Contributions are welcome! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
@@ -304,6 +415,27 @@ Before contributing, please read our [Contributing Guide](CONTRIBUTING.md) for d
 
 By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
+### Development Setup
+
+To contribute to Repo2Readme:
+
+1. Fork the repository.
+2. Clone your fork locally.
+3. Install the required dependencies.
+4. Create a new feature branch.
+5. Make your changes.
+6. Test your changes locally.
+7. Submit a Pull Request.
+
+### Running Tests
+
+Before submitting a Pull Request, ensure that all tests pass.
+
+```bash
+pytest
+```
+
+If additional testing tools are introduced in the future, contributors should run them before opening a Pull Request.
 
 ## License
 
