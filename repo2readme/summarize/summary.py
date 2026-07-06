@@ -1,19 +1,14 @@
-from langchain_groq import ChatGroq
+from repo2readme.llm.factory import get_llm
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
-import os
 from langchain_core.output_parsers import JsonOutputParser
 
 load_dotenv()
 
 
 def create_summarizer(file_path: str, language: str, content: str):
-    model = ChatGroq(
-        model="openai/gpt-oss-120b",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2, 
-    )
-    parser=JsonOutputParser()
+    model = get_llm("summarizer")
+    parser = JsonOutputParser()
     prompt = PromptTemplate(
         template="""
 You are an expert code analyst.
@@ -72,9 +67,9 @@ Code:
 Return ONLY JSON.  
 {format_instructions}
     """,
-    input_variables=["file_path", "language", "content"],
-    partial_variables={"format_instructions": parser.get_format_instructions()}
-)
+        input_variables=["file_path", "language", "content"],
+        partial_variables={"format_instructions": parser.get_format_instructions()}
+    )
 
     chain = prompt | model | parser
     return chain

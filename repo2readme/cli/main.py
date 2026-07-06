@@ -1,10 +1,13 @@
+import os
+
 import click
 from rich import print as rprint
 from rich.progress import Progress
+
 from repo2readme.config import get_api_keys, reset_api_keys
-import os
-from repo2readme.utils.tree import generate_tree
+from repo2readme.llm.factory import configure_llm
 from repo2readme.utils.detect_language import detect_lang
+from repo2readme.utils.tree import generate_tree
 
 
 @click.group()
@@ -46,21 +49,53 @@ def main():
     is_flag=True,
     help="Preview the analysis without making any API calls.",
 )
-def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run):
-    """ Use --url for GitHub repo url and --local for local repo
-    """
+@click.option(
+    "--provider",
+    default=None,
+    help="LLM provider (groq, google, openai, anthropic, etc.)",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Model name",
+)
+@click.option(
+    "--base-url",
+    default=None,
+    help="Base URL for OpenAI-compatible APIs",
+)
+def run(
+    url,
+    local,
+    output,
+    force,
+    include_patterns,
+    exclude_patterns,
+    max_file_size_kb,
+    dry_run,
+    provider,
+    model,
+    base_url,
+):
+    """Use --url for GitHub repo url and --local for local repo"""
+
     if not url and not local:
         rprint("[red]Provide either --url or --local[/red]")
         return
 
     source = url if url else local
-    
+
     from repo2readme.loaders.repo_loader import RepoLoader
 
     with Progress() as progress:
         task = progress.add_task("[cyan]Loading repository...", total=1)
         try:
-            loader = RepoLoader(source, include_patterns=include_patterns, exclude_patterns=exclude_patterns, max_file_size_kb=max_file_size_kb)
+            loader = RepoLoader(
+                source,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size_kb=max_file_size_kb,
+            )
             files, root_path, loader_obj = loader.load()
         except Exception as e:
             rprint(f"[red]Failed to load repository: {e}[/red]")
@@ -69,10 +104,13 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
 
     documents = []
     for f in files:
-        documents.append({
-            "content": f.page_content,
-            "metadata": f.metadata
-        })
+        documents.append(
+            {
+                "content": f.page_content,
+                "metadata": f.metadata,
+            }
+        )
+
     tree = generate_tree(root_path)
 
     # Estimate token count (roughly 3 characters per token)
@@ -91,21 +129,24 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
     if dry_run:
         rprint("\n[bold]Repository Tree[/bold]\n")
         rprint(tree)
+
         rprint("\n[bold]Files to be processed[/bold]\n")
         for doc in documents:
             rel_path = doc["metadata"].get("relative_path", "")
             rprint(f"✓ [green]{rel_path}[/green]")
+
         rprint("\n[bold]Repository Analysis[/bold]\n")
         rprint(f"Files selected     : {total_documents}")
         rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
         rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+
         rprint("\n[green]Dry run complete.[/green]")
         rprint("[yellow]No API requests were made.[/yellow]")
+
         if hasattr(loader_obj, "cleanup"):
             loader_obj.cleanup()
         return
 
-    # Normal execution: print estimation first
     rprint("\n[bold]Repository Analysis[/bold]\n")
     rprint(f"Files to summarize : {total_documents}")
     rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
@@ -119,33 +160,49 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 return
 
         try:
-            groq_key, gemini_key = get_api_keys()
-            os.environ["GROQ_API_KEY"] = groq_key
-            os.environ["GOOGLE_API_KEY"] = gemini_key
+            # Backward-compatible configuration loading
+            get_api_keys()
+
+            # Configure the selected LLM provider/model for the process.
+            configure_llm(
+                provider=provider,
+                model=model,
+                base_url=base_url,
+            )
+
         except Exception as e:
-            rprint(f"[red]Failed to configure API keys: {e}[/red]")
+            rprint(f"[red]Failed to configure LLM: {e}[/red]")
             return
 
-        from repo2readme.summarize.summary import summarize_file
         from repo2readme.readme.agent_workflow import workflow
+        from repo2readme.summarize.summary import summarize_file
 
         summaries = []
         errors = []
+
         with Progress() as progress:
-            task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=total_documents)
+            task = progress.add_task(
+                "[cyan]Generating summaries...[/cyan]",
+                total=total_documents,
+            )
+
             for doc in documents:
                 meta = doc["metadata"]
+
                 try:
                     lang = detect_lang(meta.get("file_type", "text"))
+
                     summary = summarize_file(
                         file_path=meta["file_path"],
                         language=lang,
-                        content=doc["content"]
+                        content=doc["content"],
                     )
-            
+
                     summaries.append(summary)
+
                 except Exception as e:
                     errors.append(f"Error processing {meta.get('file_path')}: {e}")
+
                 progress.update(task, advance=1)
 
         rprint("[cyan]Generating README...[/cyan]")
@@ -156,12 +213,12 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             "iteration_no": 0,
             "max_iterations": 3,
             "latest_readme": "",
-            'best_score': 0.0,
-            "best_readme": ""
+            "best_score": 0.0,
+            "best_readme": "",
         }
 
         final_state = workflow.invoke(initial_state)
-        readme = final_state['best_readme']
+        readme = final_state["best_readme"]
 
         if output is None:
             rprint("\n[green]Generated README:[/green]\n")
@@ -181,6 +238,11 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 f.write(readme)
 
             rprint(f"[green]Saved to {output}[/green]")
+
+        if errors:
+            rprint("\n[yellow]Some files could not be processed:[/yellow]")
+            for err in errors:
+                rprint(f"[yellow]- {err}[/yellow]")
 
     finally:
         if hasattr(loader_obj, "cleanup"):
