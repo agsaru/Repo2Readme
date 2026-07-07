@@ -158,7 +158,7 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=total_documents)
                 
                 # Limit concurrent workers to avoid overwhelming API providers
-                max_workers = min(10, total_documents)
+                max_workers = min(2, total_documents)
                 
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     futures = {executor.submit(process_document, doc): doc for doc in documents}
