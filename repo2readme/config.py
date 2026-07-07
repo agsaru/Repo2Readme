@@ -11,8 +11,9 @@ ENV_PATH = os.path.join(os.path.expanduser("~"), ".repo2readme_env.json")
 # -------------------------------------------------------
 
 SUPPORTED_API_KEYS = {
-    "GROQ_API_KEY": "Groq",
-    "GOOGLE_API_KEY": "Google Gemini",
+    "groq": ("GROQ_API_KEY", "Groq"),
+    "google": ("GOOGLE_API_KEY", "Google Gemini"),
+    "gemini": ("GOOGLE_API_KEY", "Google Gemini"),
 }
 
 
@@ -29,41 +30,51 @@ def save_env(data):
         json.dump(data, f, indent=4)
 
 
-def get_api_keys():
+def get_api_keys(provider=None):
     """
-    Loads all configured API keys.
+    Loads API keys required for the selected provider.
 
-    If any required API key is missing,
-    the user is prompted only for the missing key.
+    If no provider is specified, all supported providers
+    are checked to preserve backward compatibility.
 
     Returns
     -------
     dict
-
-    Example:
-
-    {
-        "GROQ_API_KEY": "...",
-        "GOOGLE_API_KEY": "..."
-    }
     """
 
     env = load_env()
 
-    missing = [
-        key
-        for key in SUPPORTED_API_KEYS
-        if not env.get(key)
-    ]
+    if provider:
+        provider = provider.lower()
+
+        if provider not in SUPPORTED_API_KEYS:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+        required_keys = [SUPPORTED_API_KEYS[provider]]
+    else:
+        # Backward compatibility
+        required_keys = list(dict.fromkeys(SUPPORTED_API_KEYS.values()))
+
+    missing = []
+
+    for key, provider_name in required_keys:
+        if not env.get(key):
+            missing.append((key, provider_name))
 
     if missing:
         rprint("[yellow]Some API keys are missing.[/yellow]\n")
 
-        for key in missing:
-            provider_name = SUPPORTED_API_KEYS[key]
-            env[key] = input(
-                f"Enter your {provider_name} API key: "
-            ).strip()
+        for key, provider_name in missing:
+            while True:
+                value = input(
+                    f"Enter your {provider_name} API key: "
+                ).strip()
+
+                if value:
+                    env[key] = value
+                    break
+
+                rprint("[red]API key cannot be empty.[/red]")
 
         save_env(env)
 
@@ -71,7 +82,7 @@ def get_api_keys():
 
     return {
         key: env.get(key)
-        for key in SUPPORTED_API_KEYS
+        for key, _ in dict.fromkeys(SUPPORTED_API_KEYS.values())
     }
 
 

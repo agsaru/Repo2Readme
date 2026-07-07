@@ -1,7 +1,7 @@
 import os
 
-from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 
 # ------------------------------------------------------------
 # Default configuration
@@ -24,6 +24,16 @@ DEFAULT_CONFIG = {
         "model": "gemini-2.5-flash",
         "temperature": 0.2,
     },
+}
+
+# ------------------------------------------------------------
+# Default model per provider
+# ------------------------------------------------------------
+
+PROVIDER_DEFAULT_MODELS = {
+    "groq": "openai/gpt-oss-120b",
+    "google": "gemini-2.5-flash",
+    "gemini": "gemini-2.5-flash",
 }
 
 # ------------------------------------------------------------
@@ -66,13 +76,30 @@ def create_llm(
         provider
         or _RUNTIME_CONFIG["provider"]
         or config["provider"]
-    )
+    ).lower()
 
-    model = (
-        model
-        or _RUNTIME_CONFIG["model"]
-        or config["model"]
-    )
+    # ------------------------------------------------------------
+    # Resolve model
+    #
+    # If user explicitly supplied --model, always use it.
+    #
+    # If provider was overridden but model wasn't,
+    # automatically use that provider's default model.
+    #
+    # Otherwise preserve stage defaults.
+    # ------------------------------------------------------------
+
+    if model is not None:
+        resolved_model = model
+    elif _RUNTIME_CONFIG["model"] is not None:
+        resolved_model = _RUNTIME_CONFIG["model"]
+    elif (
+        _RUNTIME_CONFIG["provider"] is not None
+        or provider != config["provider"]
+    ):
+        resolved_model = PROVIDER_DEFAULT_MODELS[provider]
+    else:
+        resolved_model = config["model"]
 
     temperature = (
         temperature
@@ -80,18 +107,16 @@ def create_llm(
         else config["temperature"]
     )
 
-    provider = provider.lower()
-
     if provider == "groq":
         return ChatGroq(
-            model=model,
+            model=resolved_model,
             api_key=os.getenv("GROQ_API_KEY"),
             temperature=temperature,
         )
 
     if provider in ("google", "gemini"):
         return ChatGoogleGenerativeAI(
-            model=model,
+            model=resolved_model,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             temperature=temperature,
         )

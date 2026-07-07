@@ -52,7 +52,7 @@ def main():
 @click.option(
     "--provider",
     default=None,
-    help="LLM provider (groq, google, openai, anthropic, etc.)",
+    help="LLM provider (groq, google)",
 )
 @click.option(
     "--model",
@@ -161,7 +161,7 @@ def run(
 
         try:
             # Backward-compatible configuration loading
-            get_api_keys()
+            get_api_keys(provider)
 
             # Configure the selected LLM provider/model for the process.
             configure_llm(
