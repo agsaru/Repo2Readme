@@ -7,6 +7,8 @@ from rich.progress import Progress
 from repo2readme.config import get_api_keys, reset_api_keys
 from repo2readme.llm.factory import configure_llm
 from repo2readme.utils.detect_language import detect_lang
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 from repo2readme.utils.tree import generate_tree
 
 
@@ -179,14 +181,13 @@ def run(
 
         summaries = []
         errors = []
-
-        with Progress() as progress:
-            task = progress.add_task(
-                "[cyan]Generating summaries...[/cyan]",
-                total=total_documents,
-            )
-
-            for doc in documents:
+        
+        # Skip summarization if there are no documents
+        if total_documents > 0:
+            summaries_lock = threading.Lock()
+            errors_lock = threading.Lock()
+            
+            def process_document(doc):
                 meta = doc["metadata"]
 
                 try:
@@ -197,13 +198,23 @@ def run(
                         language=lang,
                         content=doc["content"],
                     )
-
-                    summaries.append(summary)
-
+                    with summaries_lock:
+                        summaries.append(summary)
                 except Exception as e:
-                    errors.append(f"Error processing {meta.get('file_path')}: {e}")
-
-                progress.update(task, advance=1)
+                    with errors_lock:
+                        errors.append(f"Error processing {meta.get('file_path')}: {e}")
+            
+            with Progress() as progress:
+                task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=total_documents)
+                
+                # Limit concurrent workers to avoid overwhelming API providers
+                max_workers = min(2, total_documents)
+                
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(process_document, doc): doc for doc in documents}
+                    
+                    for future in as_completed(futures):
+                        progress.update(task, advance=1)
 
         rprint("[cyan]Generating README...[/cyan]")
 
