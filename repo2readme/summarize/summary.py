@@ -1,17 +1,18 @@
-from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
 import os
 from langchain_core.output_parsers import JsonOutputParser
+from repo2readme.llm.factory import create_llm
 
 load_dotenv()
 
 
-def create_summarizer(file_path: str, language: str, content: str):
-    model = ChatGroq(
-        model="openai/gpt-oss-120b",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=0.2, 
+def create_summarizer(file_path, language,
+    content,provider=None, model_name=None, base_url=None,):
+    model = create_llm(
+        provider=provider or "groq",
+        model=model_name or "openai/gpt-oss-120b",
+        base_url=base_url, 
     )
     parser=JsonOutputParser()
     prompt = PromptTemplate(
@@ -80,9 +81,16 @@ Return ONLY JSON.
     return chain
 
 
-def summarize_file(file_path: str, language: str, content: str):
+def summarize_file(
+    file_path,
+    language,
+    content,
+    provider=None,
+    model_name=None,
+    base_url=None,
+):
     try:
-        chain = create_summarizer(file_path, language, content)
+        chain = create_summarizer(file_path, language, content, provider, model_name, base_url,)
         return chain.invoke({
             "file_path": file_path.replace("\\", "/"),
             "language": language,

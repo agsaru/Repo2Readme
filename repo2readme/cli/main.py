@@ -48,7 +48,22 @@ def main():
     is_flag=True,
     help="Preview the analysis without making any API calls.",
 )
-def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run):
+@click.option(
+    "--provider",
+    default=None,
+    help="LLM provider (groq, google, openai, anthropic, openrouter, ollama, etc.)",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="LLM model name",
+)
+@click.option(
+    "--base-url",
+    default=None,
+    help="Base URL for OpenAI-compatible providers",
+)
+def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run, provider, model, base_url,):
     """ Use --url for GitHub repo url and --local for local repo
     """
     if not url and not local:
@@ -146,8 +161,11 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                     summary = summarize_file(
                         file_path=meta["file_path"],
                         language=lang,
-                        content=doc["content"]
-                    )
+                        content=doc["content"],
+                        provider=provider,
+                        model=model,
+                        base_url=base_url
+)
                     with summaries_lock:
                         summaries.append(summary)
                 except Exception as e:
@@ -175,7 +193,10 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             "max_iterations": 3,
             "latest_readme": "",
             'best_score': 0.0,
-            "best_readme": ""
+            "best_readme": "",
+            "provider": provider,
+            "model": model,
+            "base_url": base_url,
         }
 
         final_state = workflow.invoke(initial_state)

@@ -1,14 +1,15 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
-import os
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from typing import List
-def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str):
-    api_key = os.getenv("GOOGLE_API_KEY")
-    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+from repo2readme.llm.factory import create_llm
+def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str,provider:str, model_name:str, base_url:str):
+    model = create_llm(
+    provider= provider or "groq",
+    model= model_name or "openai/gpt-oss-120b",
+    base_url=base_url
+)
 
     prompt = PromptTemplate(
     template="""

@@ -13,6 +13,9 @@ class ReadmeState(TypedDict):
     best_score:float
     iteration_no:int
     max_iterations:int
+    provider: str | None
+    model: str | None
+    base_url: str | None
 
 def generate_readme_node(state:ReadmeState):
     latest_readme = (
@@ -22,14 +25,17 @@ def generate_readme_node(state:ReadmeState):
        summaries=state['summaries'],
        tree_structure=state['tree_structure'],
        feedback=state['feedback'],
-       latest_readme=latest_readme
+       latest_readme=latest_readme,
+       provider=state["provider"],
+       model_name=state["model"],
+       base_url=state["base_url"]
     )
     return {
         'readme':[readme]
     }
 def readme_reviewer_node(state:ReadmeState):
     latest_readme=state['readme'][-1]
-    review=readme_reviewer(latest_readme)
+    review=readme_reviewer(latest_readme,provider=state["provider"], model_name=state["model"], base_url=state["base_url"])
     best_score=state['best_score']
     best_readme=state['best_readme']
     if review.score>best_score:
