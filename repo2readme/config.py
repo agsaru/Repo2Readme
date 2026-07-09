@@ -16,6 +16,19 @@ def save_env(data):
     with open(ENV_PATH, "w") as f:
         json.dump(data, f, indent=4)
 
+def get_api_keys():
+    env = load_env()
+
+    groq = env.get("GROQ_API_KEY")
+    gemini = env.get("GOOGLE_API_KEY")
+
+    if not groq:
+        groq = get_api_key("groq")
+
+    if not gemini:
+        gemini = get_api_key("google")
+
+    return groq, gemini
 
 def get_api_key(provider: str):
     env = load_env()

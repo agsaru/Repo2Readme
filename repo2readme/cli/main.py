@@ -1,7 +1,11 @@
 import click
 from rich import print as rprint
 from rich.progress import Progress
-from repo2readme.config import get_api_keys, reset_api_keys
+from repo2readme.config import (
+    get_api_keys,
+    get_api_key,
+    reset_api_keys,
+)
 import os
 from repo2readme.utils.tree import generate_tree
 from repo2readme.utils.detect_language import detect_lang
@@ -136,9 +140,26 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 return
 
         try:
-            groq_key, gemini_key = get_api_keys()
-            os.environ["GROQ_API_KEY"] = groq_key
-            os.environ["GOOGLE_API_KEY"] = gemini_key
+            if provider:
+                api_key = get_api_key(provider)
+
+                provider_env = {
+                    "groq": "GROQ_API_KEY",
+                    "google": "GOOGLE_API_KEY",
+                    "gemini": "GOOGLE_API_KEY",
+                    "openai": "OPENAI_API_KEY",
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "openrouter": "OPENROUTER_API_KEY",
+                    "together": "TOGETHER_API_KEY",
+            }
+
+                os.environ[provider_env[provider.lower()]] = api_key
+
+            else:
+                groq_key, gemini_key = get_api_keys()
+                os.environ["GROQ_API_KEY"] = groq_key
+                os.environ["GOOGLE_API_KEY"] = gemini_key
+
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
             return
@@ -158,14 +179,21 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 meta = doc["metadata"]
                 try:
                     lang = detect_lang(meta.get("file_type", "text"))
-                    summary = summarize_file(
-                        file_path=meta["file_path"],
-                        language=lang,
-                        content=doc["content"],
-                        provider=provider,
-                        model=model,
-                        base_url=base_url
-)
+                    if provider or model or base_url:
+                        summary = summarize_file(
+                            file_path=meta["file_path"],
+                            language=lang,
+                            content=doc["content"],
+                            provider=provider,
+                            model_name=model,
+                            base_url=base_url,
+    )
+                    else:
+                        summary = summarize_file(
+                            file_path=meta["file_path"],
+                            language=lang,
+                            content=doc["content"],
+    )
                     with summaries_lock:
                         summaries.append(summary)
                 except Exception as e:
