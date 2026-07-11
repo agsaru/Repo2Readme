@@ -4,12 +4,6 @@ import os
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from langchain_groq import ChatGroq
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-
-
 def create_llm(
     provider: str,
     model: str,
@@ -35,6 +29,7 @@ def create_llm(
     provider = provider.lower()
 
     if provider == "groq":
+        from langchain_groq import ChatGroq
         return ChatGroq(
             model=model,
             api_key=api_key or os.getenv("GROQ_API_KEY"),
@@ -42,6 +37,7 @@ def create_llm(
         )
 
     elif provider in ("google", "gemini"):
+        from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
             model=model,
             google_api_key=api_key or os.getenv("GOOGLE_API_KEY"),
@@ -49,6 +45,7 @@ def create_llm(
         )
 
     elif provider == "openai":
+        from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=model,
             api_key=api_key or os.getenv("OPENAI_API_KEY"),
@@ -57,6 +54,7 @@ def create_llm(
         )
 
     elif provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
         return ChatAnthropic(
             model=model,
             api_key=api_key or os.getenv("ANTHROPIC_API_KEY"),
@@ -64,6 +62,7 @@ def create_llm(
         )
 
     elif provider == "openrouter":
+        from langchain_openai import ChatOpenAI
         return ChatOpenAI(
             model=model,
             api_key=api_key or os.getenv("OPENROUTER_API_KEY"),
