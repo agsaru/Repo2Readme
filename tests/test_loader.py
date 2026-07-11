@@ -125,7 +125,6 @@ def test_url_should_include(mock_filter):
 
     mock_filter.assert_called_once()
 
-
 @patch("repo2readme.loaders.loader.GitLoader")
 def test_url_load_metadata(mock_gitloader):
     document = Document(
@@ -140,19 +139,21 @@ def test_url_load_metadata(mock_gitloader):
         branch="main",
     )
 
-    docs, temp_dir = loader.load()
+    docs, _ = loader.load()
 
-    assert len(docs) == 1
+    try:
+        assert len(docs) == 1
 
-    metadata = docs[0].metadata
+        metadata = docs[0].metadata
 
-    assert metadata["file_name"] == "main.py"
-    assert metadata["file_type"] == ".py"
-    assert metadata["relative_path"] == "src/main.py"
-    assert metadata["file_path"].endswith("src/main.py")
+        assert metadata["file_name"] == "main.py"
+        assert metadata["file_type"] == ".py"
+        assert metadata["relative_path"] == "src/main.py"
+        assert metadata["file_path"].endswith("src/main.py")
 
-    mock_gitloader.assert_called_once()
-
+        mock_gitloader.assert_called_once()
+    finally:
+        loader.cleanup()
 
 def test_cleanup(tmp_path):
     loader = UrlRepoLoader("https://github.com/user/repo.git")
