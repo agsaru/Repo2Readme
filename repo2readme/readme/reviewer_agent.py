@@ -1,18 +1,26 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel,Field
 from langchain_core.prompts import PromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
+from repo2readme.llm.factory import create_llm
 
 load_dotenv()
 class ReviewSchema(BaseModel):
     score:float=Field(description="A score between 1 and 10 based on the quality of the README")
     feedback:str=Field(description="Actionable comment how to improve the README")
 
-def readme_reviewer(readme:str):
-    api_key = os.getenv("GOOGLE_API_KEY")
-    model=ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+def readme_reviewer(
+    readme: str,
+    provider: str | None = None,
+    model_name: str | None = None,
+    base_url: str | None = None,
+):
+    model = create_llm(
+    provider=provider or "google",
+    model=model_name or "gemini-2.5-flash",
+    base_url=base_url,
+)
     parser=PydanticOutputParser(pydantic_object=ReviewSchema)
     review_prompt=PromptTemplate(
         template="""

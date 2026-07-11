@@ -1,7 +1,11 @@
 import click
 from rich import print as rprint
 from rich.progress import Progress
-from repo2readme.config import get_api_keys, reset_api_keys
+from repo2readme.config import (
+    get_api_keys,
+    get_api_key,
+    reset_api_keys,
+)
 import os
 from repo2readme.utils.tree import generate_tree
 from repo2readme.utils.detect_language import detect_lang
@@ -48,7 +52,22 @@ def main():
     is_flag=True,
     help="Preview the analysis without making any API calls.",
 )
-def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run):
+@click.option(
+    "--provider",
+    default=None,
+    help="LLM provider (groq, google, openai, anthropic, openrouter, ollama, etc.)",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="LLM model name",
+)
+@click.option(
+    "--base-url",
+    default=None,
+    help="Base URL for OpenAI-compatible providers",
+)
+def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run, provider, model, base_url,):
     """ Use --url for GitHub repo url and --local for local repo
     """
     if not url and not local:
@@ -121,9 +140,26 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 return
 
         try:
-            groq_key, gemini_key = get_api_keys()
-            os.environ["GROQ_API_KEY"] = groq_key
-            os.environ["GOOGLE_API_KEY"] = gemini_key
+            if provider:
+                api_key = get_api_key(provider)
+
+                provider_env = {
+                    "groq": "GROQ_API_KEY",
+                    "google": "GOOGLE_API_KEY",
+                    "gemini": "GOOGLE_API_KEY",
+                    "openai": "OPENAI_API_KEY",
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "openrouter": "OPENROUTER_API_KEY",
+                    "together": "TOGETHER_API_KEY",
+            }
+
+                os.environ[provider_env[provider.lower()]] = api_key
+
+            else:
+                groq_key, gemini_key = get_api_keys()
+                os.environ["GROQ_API_KEY"] = groq_key
+                os.environ["GOOGLE_API_KEY"] = gemini_key
+
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
             return
@@ -143,11 +179,21 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 meta = doc["metadata"]
                 try:
                     lang = detect_lang(meta.get("file_type", "text"))
-                    summary = summarize_file(
-                        file_path=meta["file_path"],
-                        language=lang,
-                        content=doc["content"]
-                    )
+                    if provider or model or base_url:
+                        summary = summarize_file(
+                            file_path=meta["file_path"],
+                            language=lang,
+                            content=doc["content"],
+                            provider=provider,
+                            model_name=model,
+                            base_url=base_url,
+    )
+                    else:
+                        summary = summarize_file(
+                            file_path=meta["file_path"],
+                            language=lang,
+                            content=doc["content"],
+    )
                     with summaries_lock:
                         summaries.append(summary)
                 except Exception as e:
@@ -175,7 +221,10 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             "max_iterations": 3,
             "latest_readme": "",
             'best_score': 0.0,
-            "best_readme": ""
+            "best_readme": "",
+            "provider": provider,
+            "model": model,
+            "base_url": base_url,
         }
 
         final_state = workflow.invoke(initial_state)
