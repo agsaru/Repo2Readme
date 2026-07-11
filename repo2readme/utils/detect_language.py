@@ -29,8 +29,10 @@ EXTENSION_LANGUAGE_MAP = {
     ".css": "css",
 }
 
-def detect_lang(path:str):
-    _,extension=os.path.splitext(path)
+def detect_lang(path: str) -> str:
+    _, extension = os.path.splitext(path)
+
     if not extension and path.startswith("."):
-        extension=path
-    return EXTENSION_LANGUAGE_MAP.get(extension.lower(),"unknown")
+        extension = path
+
+    return EXTENSION_LANGUAGE_MAP.get(extension.lower(), "unknown")
