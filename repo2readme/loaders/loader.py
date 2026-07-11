@@ -89,8 +89,8 @@ class UrlRepoLoader:
         self.temp_dir = None
 
     def get_repo_name(self):
-        name = self.clone_url.split("/")[-1]
-        return name.replace(".git", "")
+        name = self.clone_url.rstrip("/").split("/")[-1]
+        return name.removesuffix(".git")
 
     def _should_include(self, path: str) -> bool:
         if self.temp_dir:
