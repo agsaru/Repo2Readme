@@ -31,4 +31,6 @@ EXTENSION_LANGUAGE_MAP = {
 
 def detect_lang(path:str):
     _,extension=os.path.splitext(path)
-    return EXTENSION_LANGUAGE_MAP.get(extension,"unknown")
+    if not extension and path.startswith("."):
+        extension=path
+    return EXTENSION_LANGUAGE_MAP.get(extension.lower(),"unknown")
