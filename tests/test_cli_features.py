@@ -1,7 +1,5 @@
 import importlib
-import os
 from click.testing import CliRunner
-import pytest
 
 cli_main = importlib.import_module("repo2readme.cli.main")
 
@@ -38,6 +36,40 @@ def test_dry_run_mode(monkeypatch, tmp_path):
     assert "✓ utils.py" in result.output
     assert "Dry run complete." in result.output
     assert "No API requests were made." in result.output
+
+
+def test_dry_run_shows_skipped_files(monkeypatch, tmp_path):
+    # Create some files including ones that should be skipped
+    file1 = tmp_path / "main.py"
+    file1.write_text("print('hello')", encoding="utf-8")
+    
+    file2 = tmp_path / "README.md"
+    file2.write_text("# README", encoding="utf-8")
+    
+    file3 = tmp_path / "large.py"
+    file3.write_text("x" * 2000, encoding="utf-8")  # Exceeds 1 KB limit
+    
+    file4 = tmp_path / "node_modules"
+    file4.mkdir()
+    file5 = file4 / "package.json"
+    file5.write_text("{}", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main.main,
+        [
+            "run",
+            "--local", str(tmp_path),
+            "--dry-run",
+            "--exclude", "*.md",
+            "--max-file-size-kb", "1"
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Skipped Files Summary" in result.output
+    assert "excluded by pattern" in result.output
+    assert "exceeds maximum file size" in result.output
 
 
 def test_normal_run_user_declines(monkeypatch, tmp_path):

@@ -196,31 +196,36 @@ def github_file_filter(
     exclude_patterns: Iterable[str] | None = None,
     root_path: str | None = None,
     max_file_size_kb: int | None = 200,
-) -> bool:
+) -> tuple[bool, str]:
     normalized_path = _normalize_path(path)
     basename = os.path.basename(normalized_path)
 
     if _matches_any(normalized_path, exclude_patterns):
-        return False
+        return False, "excluded by pattern"
 
     explicitly_included = _matches_any(normalized_path, include_patterns)
 
     if basename in PROTECTED_LARGE_FILES:
         if not _matches_protected_include(normalized_path, include_patterns):
-            return False
+            return False, "protected large file"
 
     if explicitly_included:
-        return is_file_size_allowed(
+        if not is_file_size_allowed(
             path,
             root_path=root_path,
             max_file_size_kb=max_file_size_kb,
-        )
+        ):
+            return False, "exceeds maximum file size"
+        return True, ""
 
     if is_default_ignored(path):
-        return False
+        return False, "ignored by default rules"
 
-    return is_file_size_allowed(
+    if not is_file_size_allowed(
         path,
         root_path=root_path,
         max_file_size_kb=max_file_size_kb,
-    )
+    ):
+        return False, "exceeds maximum file size"
+
+    return True, ""

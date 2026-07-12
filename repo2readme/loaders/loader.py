@@ -24,19 +24,21 @@ class LocalRepoLoader:
     def _should_include(self, path: str) -> bool:
         relative_path = os.path.relpath(path, self.folder_path).replace("\\", "/")
 
-        return github_file_filter(
+        allowed, _ = github_file_filter(
             relative_path,
             include_patterns=self.include_patterns,
             exclude_patterns=self.exclude_patterns,
             root_path=self.folder_path,
             max_file_size_kb=self.max_file_size_kb,
         )
+        return allowed
 
-    def load(self):
+    def load(self, return_skip_info=False):
         if not os.path.exists(self.folder_path):
             raise FileNotFoundError(f"Folder not found: {self.folder_path}")
 
         docs = []
+        skipped: list[tuple[str, str]] = [] if return_skip_info else []
 
         for current, dirs, files in os.walk(self.folder_path):
             dirs[:] = [
@@ -47,8 +49,18 @@ class LocalRepoLoader:
 
             for file_name in files:
                 full_path = os.path.join(current, file_name)
+                rel_path = os.path.relpath(full_path, self.folder_path).replace("\\", "/")
 
                 if not self._should_include(full_path):
+                    if return_skip_info:
+                        _, reason = github_file_filter(
+                            rel_path,
+                            include_patterns=self.include_patterns,
+                            exclude_patterns=self.exclude_patterns,
+                            root_path=self.folder_path,
+                            max_file_size_kb=self.max_file_size_kb,
+                        )
+                        skipped.append((rel_path, reason))
                     continue
 
                 try:
@@ -59,16 +71,15 @@ class LocalRepoLoader:
                         doc.metadata["file_path"] = full_path.replace("\\", "/")
                         doc.metadata["file_name"] = file_name
                         doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
-                        doc.metadata["relative_path"] = os.path.relpath(
-                            full_path,
-                            self.folder_path,
-                        ).replace("\\", "/")
+                        doc.metadata["relative_path"] = rel_path
 
                     docs.extend(loaded_docs)
 
                 except Exception as error:
                     print(f"[ERROR] Cannot load {full_path}: {error}")
 
+        if return_skip_info:
+            return docs, self.folder_path, skipped
         return docs, self.folder_path
 
 
@@ -98,13 +109,14 @@ class UrlRepoLoader:
         else:
             relative_path = path.replace("\\", "/")
 
-        return github_file_filter(
+        allowed, _ = github_file_filter(
             relative_path,
             include_patterns=self.include_patterns,
             exclude_patterns=self.exclude_patterns,
             root_path=self.temp_dir,
             max_file_size_kb=self.max_file_size_kb,
         )
+        return allowed
 
     def load(self):
         repo_name = self.get_repo_name()

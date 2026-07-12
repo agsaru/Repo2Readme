@@ -9,7 +9,7 @@ def generate_tree(root: str):
 
         dirs[:] = [
             d for d in dirs
-            if github_file_filter(os.path.join(current_dir_path, d))
+            if github_file_filter(os.path.join(current_dir_path, d))[0]
         ]
 
         level = current_dir_path.replace(root, "").count(os.sep)
@@ -25,7 +25,7 @@ def generate_tree(root: str):
         for idx, file in enumerate(files):
             full = os.path.join(current_dir_path, file)
 
-            if not github_file_filter(full):
+            if not github_file_filter(full)[0]:
                 continue
 
             file_indent = " " * 4 * (level + 1)
@@ -43,13 +43,13 @@ def extract_tree(root: str):
 
         dirs[:] = [
             d for d in dirs
-            if github_file_filter(os.path.join(current_dir_path, d))
+            if github_file_filter(os.path.join(current_dir_path, d))[0]
         ]
 
         for file in files:
             full = os.path.join(current_dir_path, file)
 
-            if github_file_filter(full):
+            if github_file_filter(full)[0]:
                 file_paths.append(full)
 
     return tree_structure, file_paths

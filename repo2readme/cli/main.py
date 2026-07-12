@@ -63,7 +63,11 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
         task = progress.add_task("[cyan]Loading repository...", total=1)
         try:
             loader = RepoLoader(source, include_patterns=include_patterns, exclude_patterns=exclude_patterns, max_file_size_kb=max_file_size_kb)
-            files, root_path, loader_obj = loader.load()
+            if dry_run:
+                files, root_path, loader_obj, skipped = loader.load(return_skip_info=True)
+            else:
+                files, root_path, loader_obj = loader.load()
+                skipped = []
         except Exception as e:
             rprint(f"[red]Failed to load repository: {e}[/red]")
             return
@@ -97,6 +101,16 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
         for doc in documents:
             rel_path = doc["metadata"].get("relative_path", "")
             rprint(f"✓ [green]{rel_path}[/green]")
+        if skipped:
+            from collections import Counter
+            skip_reasons = Counter()
+            for _, reason in skipped:
+                skip_reasons[reason] += 1
+            rprint("\n[bold]Skipped Files Summary[/bold]\n")
+            reason_order = ["excluded by pattern", "ignored by default rules", "exceeds maximum file size", "protected large file"]
+            for reason in reason_order:
+                if reason in skip_reasons:
+                    rprint(f"{reason:30s}: {skip_reasons[reason]}")
         rprint("\n[bold]Repository Analysis[/bold]\n")
         rprint(f"Files selected     : {total_documents}")
         rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
