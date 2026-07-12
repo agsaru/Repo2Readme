@@ -24,6 +24,8 @@ class RepoLoader:
             )
             docs, temp_dir = loader.load()
             if return_skip_info:
+                # GitLoader performs filtering internally and does not expose skipped files,
+                # so skipped-file reporting is currently only available for LocalRepoLoader.
                 return docs, temp_dir, loader, []
             return docs, temp_dir, loader
         else:

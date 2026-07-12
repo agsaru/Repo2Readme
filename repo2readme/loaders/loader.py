@@ -51,15 +51,16 @@ class LocalRepoLoader:
                 full_path = os.path.join(current, file_name)
                 rel_path = os.path.relpath(full_path, self.folder_path).replace("\\", "/")
 
-                if not self._should_include(full_path):
+                allowed, reason = github_file_filter(
+                    rel_path,
+                    include_patterns=self.include_patterns,
+                    exclude_patterns=self.exclude_patterns,
+                    root_path=self.folder_path,
+                    max_file_size_kb=self.max_file_size_kb,
+                )
+
+                if not allowed:
                     if return_skip_info:
-                        _, reason = github_file_filter(
-                            rel_path,
-                            include_patterns=self.include_patterns,
-                            exclude_patterns=self.exclude_patterns,
-                            root_path=self.folder_path,
-                            max_file_size_kb=self.max_file_size_kb,
-                        )
                         skipped.append((rel_path, reason))
                     continue
 

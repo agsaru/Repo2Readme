@@ -1,5 +1,3 @@
-import os
-import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -38,7 +36,7 @@ def test_local_repo_loader_init():
 
 @patch("repo2readme.loaders.loader.github_file_filter")
 def test_local_should_include(mock_filter):
-    mock_filter.return_value = (True, None)
+    mock_filter.return_value = (True, "")
 
     loader = LocalRepoLoader("repo")
     result = loader._should_include("repo/main.py")
@@ -56,7 +54,7 @@ def test_local_load_missing_directory():
 
 @patch("repo2readme.loaders.loader.github_file_filter")
 def test_local_load_success(mock_filter, tmp_path):
-    mock_filter.return_value = (True, None)
+    mock_filter.return_value = (True, "")
 
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
@@ -83,7 +81,7 @@ def test_local_load_success(mock_filter, tmp_path):
 @patch("repo2readme.loaders.loader.TextLoader")
 @patch("repo2readme.loaders.loader.github_file_filter")
 def test_local_load_skips_failed_file(mock_filter, mock_textloader, tmp_path):
-    mock_filter.return_value = (True, None)
+    mock_filter.return_value = (True, "")
 
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
@@ -129,7 +127,7 @@ def test_get_repo_name(url, expected):
 
 @patch("repo2readme.loaders.loader.github_file_filter")
 def test_url_should_include(mock_filter, url_loader):
-    mock_filter.return_value = (True, None)
+    mock_filter.return_value = (True, "")
     url_loader.temp_dir = "/tmp/repo"
 
     result = url_loader._should_include("/tmp/repo/src/main.py")
