@@ -1,358 +1,49 @@
 # repo2readme
+
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/repo2readme?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/repo2readme)
 
-Generate a professional `README.md` from any GitHub or local
-repository. This tool analyzes your project structure and file
-contents, then leverages AI models to intelligently craft a
-comprehensive and informative README.
+Generate a professional `README.md` from any GitHub or local repository. `repo2readme` analyzes your project structure and file contents, then uses AI models to draft and iteratively refine a comprehensive README.
 
-## 🌟 Table of Contents
+## Quickstart
 
-*   [About the Project](#about-the-project)
-*   [Tech Stack](#tech-stack)
-*   [Key Features](#key-features)
-*   [Folder Structure](#folder-structure)
-*   [Installation](#installation)
-*   [Usage](#usage)
-*   [Configuration](#configuration)
-*   [How It Works](#how-it-works)
-*   [Contributing](#contributing)
-*   [License](#license)
-
-## About the Project
-
-`repo2readme` is a command-line interface (CLI) tool designed to       
-automate the creation of high-quality `README.md` files. It
-intelligently scans your repository, summarizes key files, and then    
-iteratively generates and refines a `README` using advanced AI agents. 
-Whether your project is hosted on GitHub or resides locally,
-`repo2readme` streamlines documentation, ensuring your projects are    
-well-explained and easily understood.
-
-## Tech Stack
-
-The `repo2readme` project leverages a modern Python ecosystem for its  
-functionality:
-
-*   🐍 Python (>=3.10)
-*   🛠️ Setuptools
-*   🖱️ Click: For building intuitive command-line interfaces.
-*   ✨ Rich: For beautiful terminal output and progress displays.      
-*   ⚙️ GitPython: For programmatic interaction with Git repositories.  
-*   🔑 python-dotenv: For managing environment variables.
-*   🦜 LangChain: A framework for developing applications powered by   
-language models.
-*   🌍 LangChain Community: Community integrations for LangChain.      
-*   🧠 LangChain Groq: Integration for Groq language models.
-*   📚 LangChain Google GenAI: Integration for Google Generative AI    
-models.
-*   💨 Groq: For fast inference with language models (specifically     
-`openai/gpt-oss-120b` for summarization).
-*   🚀 Google GenAI: For accessing Google Gemini models
-(`gemini-2.5-flash` for README generation and review).
-*   Pydantic: For data validation and settings management (used in     
-reviewer agent schema).
-*   os, json, tempfile, shutil, stat, operator, typing: Standard Python
-libraries for system interactions, data handling, and type hinting.    
-
-## Key Features
-
-*   **Repository Analysis**: Automatically loads files and content from
-GitHub URLs or local directories.
-*   **Intelligent Summarization**: Uses a Groq LLM to summarize        
-individual source files, capturing their purpose and functionality.    
-*   **Hierarchical Tree Generation**: Creates a visual representation  
-of your repository's directory structure.
-*   **AI-Powered README Creation**: Employs a Google Gemini model to   
-draft comprehensive and structured `README.md` content.
-*   **Iterative Refinement**: Utilizes an agent-based workflow with a  
-reviewer agent (Google Gemini) to iteratively score and improve the    
-generated README until a high-quality standard is met.
-*   **API Key Management**: Securely stores and manages API keys for   
-Groq and Google Gemini services in your local environment.
-*   **File Filtering**: Automatically ignores common development       
-artifacts (`.git`, `node_modules`, `__pycache__`, etc.) to focus on    
-relevant project files.
-
-## Folder Structure
-
-```
-Repo2Readme/
-    ├── README.md
-    ├── CODE_OF_CONDUCT.md
-    ├── CONTRIBUTING.md
-    ├── LICENSE
-    ├── pyproject.toml
-    ├── requirements.txt
-    ├── repo2readme/
-    │   ├── __init__.py
-    │   ├── config.py
-    │   ├── cli/
-    │   │   ├── __init__.py
-    │   │   └── main.py
-    │   ├── llm/
-    │   │   ├── __init__.py
-    │   │   └── factory.py
-    │   ├── loaders/
-    │   │   ├── __init__.py
-    │   │   ├── loader.py
-    │   │   └── repo_loader.py
-    │   ├── readme/
-    │   │   ├── __init__.py
-    │   │   ├── agent_workflow.py
-    │   │   ├── readme_generator.py
-    │   │   └── reviewer_agent.py
-    │   ├── summarize/
-    │   │   ├── __init__.py
-    │   │   └── summary.py
-    │   └── utils/
-    │       ├── __init__.py
-    │       ├── detect_language.py
-    │       ├── filter.py
-    │       ├── force_remove.py
-    │       └── tree.py
-    ├── tests/
-    └── .github/
-        ├── dependabot.yml
-        └── workflows/
-
-```
-
-## Installation
-
-To install `repo2readme`, you need Python 3.10 or higher.
-
-1.  **Clone the repository (optional, if installing from source):**    
-    ```bash
-    git clone https://github.com/agsaru/repo2readme.git
-    cd repo2readme
-    ```
-
-2.  **Install the package:**
-    ```bash
-    pip install repo2readme
-    ```
-
-## Usage
-
-`repo2readme` provides two main commands: `run` to generate a README   
-and `reset` to clear your stored API keys.
-
-### 1. Generate a README
-
-Use the `run` command with either a GitHub repository URL or a local   
-path.
-
-**From a GitHub Repository URL:**
 ```bash
+pip install repo2readme
+
+# From a GitHub URL
 repo2readme run --url https://github.com/agsaru/repo2readme -o README_NEW.md
-```
 
-**From a Local Repository Path:**
-```bash
+# From a local repo
 repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
 ```
 
-**Options:**
-*   `-u`, `--url <URL>`: GitHub repository URL to process.
-*   `-l`, `--local <PATH>`: Path to a local repository.
-*   `-o`, `--output <FILE_PATH>`: File path to save the generated README (defaults to `README.md`).
-*   `-f`, `--force`: Overwrite the output file and bypass the token estimation confirmation prompt without confirmation.
-*   `--dry-run`: Preview the analysis without making any API calls (runs local analysis, generates the repository tree, estimates token count, and prints the list of files to be processed).
+On first run you'll be prompted for a Groq and a Google Gemini API key — see [Configuration](docs/configuration.md) for details.
 
-### 🛡️ Token Estimation and Warnings
+## Documentation
 
-Running the tool on a repository can consume a significant number of LLM API tokens. To prevent accidental quota exhaustion and unexpected costs:
+- [Installation](docs/installation.md)
+- [Usage](docs/usage.md)
+- [CLI Reference](docs/cli-reference.md)
+- [Configuration](docs/configuration.md)
+- [Examples](docs/examples.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
-1. **Before any API calls are made**, `repo2readme` estimates the number of files, token count, and total request size.
-2. If running interactively, the tool displays this analysis and prompts the user for confirmation:
-   ```
-   Repository Analysis
+## Key Features
 
-   Files to summarize : 45
-   Estimated tokens   : ~120,000
-   Request size       : ~420.5 KB
+- **Repository Analysis** — loads files from a GitHub URL or a local directory.
+- **Intelligent Summarization** — a Groq LLM summarizes each source file's purpose and functionality.
+- **Hierarchical Tree Generation** — a visual directory tree of your project.
+- **AI-Powered README Creation** — a Google Gemini model drafts the README.
+- **Iterative Refinement** — a reviewer agent scores and improves drafts until quality is high enough.
+- **File Filtering** — common non-essential files (`.git`, `node_modules`, `__pycache__`, etc.) are skipped automatically, and configurable via `--include`/`--exclude`/`--max-file-size-kb`.
 
-   Proceed? [y/N]
-   ```
-3. If confirmed, the tool retrieves API keys and begins summarization. Otherwise, it exits gracefully.
-4. If `--force` is used, the confirmation prompt is automatically bypassed.
+## Tech Stack
 
-### 🔍 Dry Run Mode
-
-You can run `repo2readme` in `--dry-run` mode to preview the analysis, view the estimated tokens, and verify your include/exclude filters without making any LLM requests or requiring API keys:
-
-```bash
-repo2readme run --local ./path/to/your/repo --dry-run
-```
-
-Output example:
-```
-Repository Tree
-
-project/
-├── src/
-├── tests/
-└── README.md
-
-Files to be processed
-
-✓ src/main.py
-✓ src/api.py
-✓ tests/test_api.py
-...
-
-Repository Analysis
-
-Files selected     : 45
-Estimated tokens   : ~120,000
-Request size       : ~420.5 KB
-
-Dry run complete.
-No API requests were made.
-```
-
-### 2. Reset API Keys
-
-To clear your stored Groq and Google Gemini API keys:
-```bash
-repo2readme reset
-```
-This will delete the configuration file storing your keys, prompting   
-you to re-enter them on the next `run` command.
-
-## Configuration
-
-`repo2readme` requires API keys for Groq and Google Gemini to interact 
-with large language models. These keys can be provided either as       
-environment variables or will be prompted for and saved locally.       
-
-### API Keys
-
-*   **GROQ_API_KEY**: Required for accessing the Groq LLM (used for    
-file summarization).
-*   **GOOGLE_API_KEY**: Required for accessing Google Generative AI    
-(Gemini) models (used for README generation and review).
-
-When `repo2readme run` is executed for the first time or if keys are   
-missing, the CLI will interactively prompt you to enter them. These    
-keys are then saved in a JSON file at `~/.repo2readme_env.json` for    
-future use.
-
-Alternatively, you can set these as system environment variables:      
-```bash
-export GROQ_API_KEY="your_groq_api_key"
-export GOOGLE_API_KEY="your_google_api_key"
-```
-
-## How It Works
-
-The `repo2readme` tool orchestrates a sophisticated workflow to        
-generate a README:
-
-1.  **Repository Loading**:
-    *   Based on your input (GitHub URL or local path), a `RepoLoader` 
-determines whether to use a `UrlRepoLoader` (which clones the GitHub   
-repository into a temporary directory) or a `LocalRepoLoader` (which   
-reads from your local filesystem).
-    *   During loading, an intelligent filter (`github_file_filter`) is
-applied to ignore irrelevant files and directories (e.g., `.git`,      
-`node_modules`, `package-lock.json`, `.env`, various binary or data    
-files), focusing only on source code and essential project files.      
-
-2.  **Repository Structure & File Analysis**:
-    *   A visual directory tree (`generate_tree`) is constructed,      
-providing a clear overview of the project's structure.
-    *   For each relevant file, its programming language is detected   
-(`detect_lang`) based on its extension.
-    *   A `summarize_file` function is then invoked, which uses a      
-specialized LangChain chain powered by the **Groq LLM
-(openai/gpt-oss-120b)** to generate a concise, JSON-formatted summary  
-of the file's content and purpose. This summary is tailored for README 
-generation.
-
-3.  **Iterative README Generation Workflow**:
-    *   The core of the README creation is handled by a **LangGraph    
-state machine**. This machine iteratively generates, reviews, and      
-refines the README.
-    *   **Generation Node**: The `generate_readme_node` utilizes a     
-**Google Gemini 2.5 Flash model** via LangChain. It takes all file     
-summaries, the repository tree structure, any previous `README` 
-content, and reviewer feedback to produce a new `README.md` draft.     
-    *   **Review Node**: The `readme_reviewer_node` also uses a        
-**Google Gemini 2.5 Flash model**. This agent evaluates the latest     
-README draft, assigns it a quality score (1-10), and provides
-constructive feedback for improvement.
-    *   **Conditional Loop**: The workflow continues looping between   
-generation and review. The process stops when the generated `README`   
-achieves a score of 8.5 or higher, or if a maximum number of iterations
-is reached, ensuring a high-quality output while preventing infinite   
-loops.
-
-4.  **Output**:
-    *   The best-scoring `README.md` generated during the iterative    
-process is selected.
-    *   This final `README` content is then either printed to the      
-console or saved to the specified output file (defaulting to
-`README.md`).
-
-Throughout this process, `repo2readme/config.py` manages the secure    
-loading and saving of API keys, prompting the user for input if        
-necessary. Temporary directories created during remote repository      
-cloning are also safely cleaned up using `force_remove`.
-
-### Configurable File Filtering
-
-Repo2Readme uses default filters to skip generated files, build artifacts, lock files, images, archives, and other files that are usually not useful for README generation.
-
-You can include or exclude additional files using glob patterns:
-
-```bash
-repo2readme run --local ./my-project --include "package.json"
-repo2readme run --local ./my-project --exclude "tests/*"
-repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
-```
-...
+Python (>=3.10) · Click · Rich · GitPython · python-dotenv · LangChain (+ Groq and Google GenAI integrations) · Pydantic
 
 ## Contributing
 
-Contributions are welcome! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
-
-Before contributing, please read our [Contributing Guide](CONTRIBUTING.md) for details on setting up the project, coding standards, and the pull request process.
-
-By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
-
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) for setup, coding standards, and the PR process. By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-This project is licensed under the MIT License.
-
-Copyright (c) 2025 Sarowar Jahan Biswas
-
-Permission is hereby granted, free of charge, to any person obtaining a
-copy
-of this software and associated documentation files (the "Software"),  
-to deal
-in the Software without restriction, including without limitation the  
-rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or   
-sell
-copies of the Software, and to permit persons to whom the Software is  
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included
-in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
-IN THE
-SOFTWARE.
+MIT License. See [LICENSE](LICENSE).
