@@ -13,7 +13,8 @@ def load_env():
 
 
 def save_env(data):
-    with open(ENV_PATH, "w") as f:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    with os.fdopen(os.open(ENV_PATH, flags, 0o600), "w") as f:
         json.dump(data, f, indent=4)
 
 
