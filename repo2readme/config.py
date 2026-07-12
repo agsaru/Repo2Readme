@@ -16,31 +16,54 @@ def save_env(data):
     with open(ENV_PATH, "w") as f:
         json.dump(data, f, indent=4)
 
-
 def get_api_keys():
     env = load_env()
 
     groq = env.get("GROQ_API_KEY")
     gemini = env.get("GOOGLE_API_KEY")
 
-    if groq and gemini:
-        return groq, gemini
-
-    rprint("[yellow]API keys are missing! Let's add them.[/yellow]\n")
-
     if not groq:
-        groq = input("Enter your Groq API key: ").strip()
+        groq = get_api_key("groq")
+
     if not gemini:
-        gemini = input("Enter your Google Gemini API key: ").strip()
-
-    env["GROQ_API_KEY"] = groq
-    env["GOOGLE_API_KEY"] = gemini
-
-    save_env(env)
-
-    rprint("[green]API keys saved successfully![/green]")
+        gemini = get_api_key("google")
 
     return groq, gemini
+
+def get_api_key(provider: str):
+    env = load_env()
+
+    provider_map = {
+        "groq": "GROQ_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "gemini": "GOOGLE_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "together": "TOGETHER_API_KEY",
+    }
+
+    provider = provider.lower()
+
+    if provider not in provider_map:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+    env_var = provider_map[provider]
+    api_key = env.get(env_var)
+
+    if api_key:
+        return api_key
+
+    rprint(f"[yellow]{provider} API key is missing![/yellow]\n")
+
+    api_key = input(f"Enter your {provider} API key: ").strip()
+
+    env[env_var] = api_key
+    save_env(env)
+
+    rprint("[green]API key saved successfully![/green]")
+
+    return api_key
 
 
 def reset_api_keys():

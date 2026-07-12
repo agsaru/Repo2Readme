@@ -78,26 +78,44 @@ relevant project files.
 
 ```
 Repo2Readme/
+    ├── README.md
+    ├── CODE_OF_CONDUCT.md
+    ├── CONTRIBUTING.md
     ├── LICENSE
     ├── pyproject.toml
+    ├── requirements.txt
     ├── repo2readme/
-        ├── config.py
-        ├── cli/
-            ├── main.py
-        ├── loaders/
-            ├── loader.py
-            ├── repo_loader.py
-        ├── readme/
-            ├── agent_workflow.py
-            ├── readme_generator.py
-            ├── reviewer_agent.py
-        ├── summerize/
-            ├── summary.py
-        ├── utils/
-            ├── detect_language.py
-            ├── filter.py
-            ├── force_remove.py
-            ├── tree.py
+    │   ├── __init__.py
+    │   ├── config.py
+    │   ├── cli/
+    │   │   ├── __init__.py
+    │   │   └── main.py
+    │   ├── llm/
+    │   │   ├── __init__.py
+    │   │   └── factory.py
+    │   ├── loaders/
+    │   │   ├── __init__.py
+    │   │   ├── loader.py
+    │   │   └── repo_loader.py
+    │   ├── readme/
+    │   │   ├── __init__.py
+    │   │   ├── agent_workflow.py
+    │   │   ├── readme_generator.py
+    │   │   └── reviewer_agent.py
+    │   ├── summarize/
+    │   │   ├── __init__.py
+    │   │   └── summary.py
+    │   └── utils/
+    │       ├── __init__.py
+    │       ├── detect_language.py
+    │       ├── filter.py
+    │       ├── force_remove.py
+    │       └── tree.py
+    ├── tests/
+    └── .github/
+        ├── dependabot.yml
+        └── workflows/
+
 ```
 
 ## Installation
