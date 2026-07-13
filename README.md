@@ -7,11 +7,11 @@ Generate a professional `README.md` from any GitHub or local repository. `repo2r
 ## 🌟 Table of Contents
 
 - [About the Project](#about-the-project)
-- [Quickstart](#quickstart)
-- [Documentation](#documentation)
 - [Key Features](#key-features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
 - [Tech Stack](#tech-stack)
-- [Folder Structure](#folder-structure)
 - [How It Works](#how-it-works)
 - [Contributing](#contributing)
 - [License](#license)
@@ -20,42 +20,6 @@ Generate a professional `README.md` from any GitHub or local repository. `repo2r
 
 `repo2readme` is a command-line interface (CLI) tool designed to automate the creation of high-quality `README.md` files. It scans your repository, summarizes key files, and iteratively generates and refines a README using AI agents. Whether your project is hosted on GitHub or resides locally, `repo2readme` streamlines documentation so your projects stay well-explained and easy to understand.
 
-## Quickstart
-
-```bash
-pip install repo2readme
-
-# From a GitHub URL
-repo2readme run --url https://github.com/agsaru/repo2readme -o README_NEW.md
-
-# From a local repo
-repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
-```
-
-On first run, you'll be prompted for a Groq and a Google Gemini API key. See [Configuration](docs/configuration.md) for details, or set them ahead of time:
-
-```bash
-export GROQ_API_KEY="your_groq_api_key"
-export GOOGLE_API_KEY="your_google_api_key"
-```
-
-Want to preview what will be processed before spending any tokens? Use `--dry-run`:
-
-```bash
-repo2readme run --local ./path/to/your/repo --dry-run
-```
-
-## Documentation
-
-Full details live in [`docs/`](docs/):
-
-- [Installation](docs/installation.md)
-- [Usage](docs/usage.md)
-- [CLI Reference](docs/cli-reference.md) — every flag, explained
-- [Configuration](docs/configuration.md) — API keys & environment variables
-- [Examples](docs/examples.md) — common real-world commands
-- [Troubleshooting](docs/troubleshooting.md)
-
 ## Key Features
 
 - **Repository Analysis** — automatically loads files and content from GitHub URLs or local directories.
@@ -63,8 +27,142 @@ Full details live in [`docs/`](docs/):
 - **Hierarchical Tree Generation** — creates a visual representation of your repository's directory structure.
 - **AI-Powered README Creation** — employs a Google Gemini model to draft comprehensive, structured `README.md` content.
 - **Iterative Refinement** — a reviewer agent (Google Gemini) scores and improves the generated README until a high-quality standard is met.
-- **API Key Management** — securely stores and manages API keys for Groq and Google Gemini in your local environment.
 - **File Filtering** — automatically ignores common development artifacts (`.git`, `node_modules`, `__pycache__`, lock files, images, archives, etc.), with `--include`/`--exclude`/`--max-file-size-kb` for fine control.
+
+## Installation
+
+Requires Python 3.10+.
+
+```bash
+pip install repo2readme
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/agsaru/repo2readme.git
+cd repo2readme
+pip install -e .
+```
+
+Verify it installed:
+
+```bash
+repo2readme --help
+```
+
+## Usage
+
+`repo2readme` provides two commands: `run` to generate a README, and `reset` to clear stored API keys.
+
+### Generate a README
+
+**From a GitHub repository URL:**
+```bash
+repo2readme run --url https://github.com/agsaru/repo2readme -o README_NEW.md
+```
+
+**From a local repository path:**
+```bash
+repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
+```
+
+### Options
+
+| Flag | Short | Description |
+|---|---|---|
+| `--url <URL>` | `-u` | GitHub repository URL to process. |
+| `--local <PATH>` | `-l` | Path to a local repository. |
+| `--output <FILE_PATH>` | `-o` | Output file path (defaults to `README.md`). |
+| `--force` | `-f` | Overwrite output and skip the confirmation prompt. |
+| `--dry-run` | | Preview file selection & token estimate — no API calls, no keys required. |
+| `--include <PATTERN>` | | Glob pattern to force-include a file, even if normally filtered. |
+| `--exclude <PATTERN>` | | Glob pattern to exclude a file. |
+| `--max-file-size-kb <N>` | | Skip files larger than N KB. |
+
+You must provide exactly one of `--url` or `--local`.
+
+### Token estimation & confirmation
+
+Before making any API calls, `repo2readme` estimates file count, token usage, and request size, then asks for confirmation:
+
+```
+Repository Analysis
+
+Files to summarize : 45
+Estimated tokens   : ~120,000
+Request size       : ~420.5 KB
+
+Proceed? [y/N]
+```
+
+Pass `--force` to skip this prompt and overwrite the output automatically.
+
+### Dry run mode
+
+Preview what will be processed — no API calls, no API keys needed:
+
+```bash
+repo2readme run --local ./path/to/your/repo --dry-run
+```
+
+```
+Repository Tree
+
+project/
+├── src/
+├── tests/
+└── README.md
+
+Files to be processed
+
+✓ src/main.py
+✓ src/api.py
+✓ tests/test_api.py
+...
+
+Repository Analysis
+
+Files selected     : 45
+Estimated tokens   : ~120,000
+Request size       : ~420.5 KB
+
+Dry run complete.
+No API requests were made.
+```
+
+### Filtering files
+
+Default filters skip generated files, build artifacts, lock files, images, archives, and similar noise. Adjust with `--include`/`--exclude`/`--max-file-size-kb`:
+
+```bash
+repo2readme run --local ./my-project --include "package.json"
+repo2readme run --local ./my-project --exclude "tests/*"
+repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
+```
+
+### Reset stored API keys
+
+```bash
+repo2readme reset
+```
+Deletes the local key config file; you'll be re-prompted on the next `run`.
+
+## Configuration
+
+`repo2readme` needs two API keys:
+
+| Variable | Used for |
+|---|---|
+| `GROQ_API_KEY` | File summarization (Groq `openai/gpt-oss-120b`) |
+| `GOOGLE_API_KEY` | README generation & review (Gemini `2.5-flash`) |
+
+On first run, the CLI prompts for these interactively and saves them to `~/.repo2readme_env.json` for future runs. Alternatively, set them as environment variables:
+
+```bash
+export GROQ_API_KEY="your_groq_api_key"
+export GOOGLE_API_KEY="your_google_api_key"
+```
 
 ## Tech Stack
 
@@ -79,60 +177,10 @@ Full details live in [`docs/`](docs/):
 - 🚀 Google GenAI — Gemini models (`gemini-2.5-flash` for generation & review)
 - Pydantic — data validation for the reviewer agent schema
 
-## Folder Structure
-
-```
-Repo2Readme/
-    ├── README.md
-    ├── CODE_OF_CONDUCT.md
-    ├── CONTRIBUTING.md
-    ├── LICENSE
-    ├── pyproject.toml
-    ├── requirements.txt
-    ├── docs/
-    │   ├── installation.md
-    │   ├── usage.md
-    │   ├── cli-reference.md
-    │   ├── configuration.md
-    │   ├── examples.md
-    │   └── troubleshooting.md
-    ├── repo2readme/
-    │   ├── __init__.py
-    │   ├── config.py
-    │   ├── cli/
-    │   │   ├── __init__.py
-    │   │   └── main.py
-    │   ├── llm/
-    │   │   ├── __init__.py
-    │   │   └── factory.py
-    │   ├── loaders/
-    │   │   ├── __init__.py
-    │   │   ├── loader.py
-    │   │   └── repo_loader.py
-    │   ├── readme/
-    │   │   ├── __init__.py
-    │   │   ├── agent_workflow.py
-    │   │   ├── readme_generator.py
-    │   │   └── reviewer_agent.py
-    │   ├── summarize/
-    │   │   ├── __init__.py
-    │   │   └── summary.py
-    │   └── utils/
-    │       ├── __init__.py
-    │       ├── detect_language.py
-    │       ├── filter.py
-    │       ├── force_remove.py
-    │       └── tree.py
-    ├── tests/
-    └── .github/
-        ├── dependabot.yml
-        └── workflows/
-```
-
 ## How It Works
 
 1. **Repository Loading** — a `RepoLoader` picks a `UrlRepoLoader` (clones the GitHub repo into a temp directory) or `LocalRepoLoader` (reads your filesystem), and applies `github_file_filter` to skip irrelevant files (`.git`, `node_modules`, `package-lock.json`, `.env`, binaries, etc.).
-2. **Structure & File Analysis** — `generate_tree` builds a visual directory tree; each file's language is detected via `detect_lang`; `summarize_file` uses a Groq LLM (`openai/gpt-oss-120b`) to produce a concise, JSON-formatted summary of each file's purpose.
+2. **Structure & File Analysis** — `generate_tree` builds a visual directory tree; each file's language is detected via `detect_lang`; `summarize_file` uses a Groq LLM to produce a concise, JSON-formatted summary of each file's purpose.
 3. **Iterative README Generation** — a LangGraph state machine alternates between:
    - **Generation** (`generate_readme_node`, Gemini 2.5 Flash) — drafts a README from file summaries, the repo tree, prior drafts, and reviewer feedback.
    - **Review** (`readme_reviewer_node`, Gemini 2.5 Flash) — scores the draft (1–10) with feedback.
@@ -140,8 +188,6 @@ Repo2Readme/
 4. **Output** — the best-scoring README is printed or saved to your chosen output file (default `README.md`).
 
 `repo2readme/config.py` handles secure API key storage/loading, and `force_remove` safely cleans up temporary clone directories.
-
-See the [CLI Reference](docs/cli-reference.md) for the full list of flags, including file filtering options.
 
 ## Contributing
 
