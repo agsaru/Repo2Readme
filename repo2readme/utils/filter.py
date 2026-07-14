@@ -200,13 +200,24 @@ def github_file_filter(
     normalized_path = _normalize_path(path)
     basename = os.path.basename(normalized_path)
 
-    if _matches_any(normalized_path, exclude_patterns):
+    # When a root_path is provided, match include/exclude patterns against
+    # the path relative to that root so patterns like `src/*` work as
+    # expected for absolute file paths.
+    match_path = normalized_path
+    if root_path:
+        try:
+            rel = os.path.relpath(path, root_path)
+            match_path = _normalize_path(rel)
+        except Exception:
+            match_path = normalized_path
+
+    if _matches_any(match_path, exclude_patterns):
         return False, "excluded by pattern"
 
-    explicitly_included = _matches_any(normalized_path, include_patterns)
+    explicitly_included = _matches_any(match_path, include_patterns)
 
     if basename in PROTECTED_LARGE_FILES:
-        if not _matches_protected_include(normalized_path, include_patterns):
+        if not _matches_protected_include(match_path, include_patterns):
             return False, "protected large file"
 
     if explicitly_included:
@@ -218,7 +229,9 @@ def github_file_filter(
             return False, "exceeds maximum file size"
         return True, ""
 
-    if is_default_ignored(path):
+    # Check default ignore rules against the match path (relative when
+    # possible) so directory patterns like `node_modules` are detected.
+    if is_default_ignored(match_path):
         return False, "ignored by default rules"
 
     if not is_file_size_allowed(

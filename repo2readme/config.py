@@ -1,6 +1,10 @@
 import os
 import json
 from rich import print as rprint
+try:
+    import click
+except Exception:
+    click = None
 
 ENV_PATH = os.path.join(os.path.expanduser("~"), ".repo2readme_env.json")
 
@@ -60,7 +64,17 @@ def get_api_key(provider: str):
 
     rprint(f"[yellow]{provider} API key is missing![/yellow]\n")
 
-    api_key = input(f"Enter your {provider} API key: ").strip()
+    # Use Click prompt when available so CLI prompting integrates with Click
+    # and is testable via click.testing.CliRunner. Fall back to built-in
+    # input() if Click isn't present.
+    if click is not None:
+        prompt_text = f"Enter your {provider} API key"
+        try:
+            api_key = click.prompt(prompt_text, hide_input=True, default="", show_default=False).strip()
+        except Exception:
+            api_key = input(f"Enter your {provider} API key: ").strip()
+    else:
+        api_key = input(f"Enter your {provider} API key: ").strip()
 
     env[env_var] = api_key
     save_env(env)
