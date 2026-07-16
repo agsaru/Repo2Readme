@@ -179,7 +179,11 @@ def test_local_traversal_file_symlink(tmp_path):
     docs, root = loader.load()
 
     paths = {doc.metadata["relative_path"] for doc in docs}
-    assert paths == {"main.py", "data_link.py"}
+    assert paths == {
+        "main.py",
+        "data.py",
+        "data_link.py",
+    }
 
 
 def test_local_traversal_symlink_duplicate_prevention(tmp_path):
