@@ -42,6 +42,9 @@ class LocalRepoLoader:
 
         docs = []
         skipped: list[tuple[str, str]] = [] if return_skip_info else []
+        visited_dirs: set[str] = set()
+        root_resolved = os.path.realpath(self.folder_path)
+        visited_dirs.add(root_resolved)
 
         for current, dirs, files in os.walk(self.folder_path):
             new_dirs = []
@@ -57,10 +60,26 @@ class LocalRepoLoader:
                     max_file_size_kb=None,
                 )
 
-                if allowed:
-                    new_dirs.append(directory)
-                elif return_skip_info:
-                    skipped.append((rel_dir_path + "/", reason))
+                if not allowed:
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", reason))
+                    continue
+
+                resolved_path = os.path.realpath(full_dir_path)
+
+                if resolved_path in visited_dirs:
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", "circular or duplicate symbolic link"))
+                    continue
+
+                if os.path.islink(full_dir_path):
+                    if not os.path.isdir(resolved_path):
+                        if return_skip_info:
+                            skipped.append((rel_dir_path + "/", "broken symbolic link"))
+                        continue
+
+                visited_dirs.add(resolved_path)
+                new_dirs.append(directory)
 
             dirs[:] = new_dirs
 
@@ -166,6 +185,9 @@ class UrlRepoLoader:
 
         docs = []
         skipped: list[tuple[str, str]] = [] if return_skip_info else []
+        visited_dirs: set[str] = set()
+        root_resolved = os.path.realpath(self.temp_dir)
+        visited_dirs.add(root_resolved)
 
         for current, dirs, files in os.walk(self.temp_dir):
             new_dirs = []
@@ -181,10 +203,26 @@ class UrlRepoLoader:
                     max_file_size_kb=None,
                 )
 
-                if allowed:
-                    new_dirs.append(directory)
-                elif return_skip_info:
-                    skipped.append((rel_dir_path + "/", reason))
+                if not allowed:
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", reason))
+                    continue
+
+                resolved_path = os.path.realpath(full_dir_path)
+
+                if resolved_path in visited_dirs:
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", "circular or duplicate symbolic link"))
+                    continue
+
+                if os.path.islink(full_dir_path):
+                    if not os.path.isdir(resolved_path):
+                        if return_skip_info:
+                            skipped.append((rel_dir_path + "/", "broken symbolic link"))
+                        continue
+
+                visited_dirs.add(resolved_path)
+                new_dirs.append(directory)
 
             dirs[:] = new_dirs
 
