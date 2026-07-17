@@ -223,8 +223,6 @@ class UrlRepoLoader:
                     if return_skip_info:
                         skipped.append((rel_path, f"load_error: {error}"))
 
-                except Exception as error:
-                    print(f"[ERROR] Cannot load {full_path}: {error}")
 
         if return_skip_info:
             return docs, self.temp_dir, skipped
