@@ -1,43 +1,72 @@
+import time
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from typing import List
 from repo2readme.llm.factory import create_llm
+
+
+def estimate_tokens(text: str) -> int:
+    return len(text) // 4
+
+
+def truncate_text(text: str, max_tokens: int) -> str:
+    """Hard-caps a single string to fit within max_tokens (pure string slicing, no API calls)."""
+    if not text:
+        return text
+    char_limit = max_tokens * 4
+    if len(text) > char_limit:
+        return text[:char_limit] + "\n...(truncated)"
+    return text
+
+
+def summary_to_text(item) -> str:
+    """Converts a summary item to plain text, whether it's a string or a dict."""
+    if isinstance(item, str):
+        return item
+    if isinstance(item, dict):
+        for key in ("summary", "content", "text"):
+            if key in item and isinstance(item[key], str):
+                return item[key]
+        return str(item)
+    return str(item)
+
+
+def truncate_summaries(summaries: List, max_tokens: int) -> List[str]:
+    """Combines and hard-caps the summaries list to fit within max_tokens."""
+    text_items = [summary_to_text(s) for s in summaries]
+    combined = "\n".join(text_items)
+    return [truncate_text(combined, max_tokens)]
+
+
 def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str,provider:str, model_name:str, base_url:str):
     model = create_llm(
     provider= provider or "groq",
     model= model_name or "openai/gpt-oss-120b",
     base_url=base_url
 )
-
     prompt = PromptTemplate(
     template="""
 You are an expert README Generator and a Markdown file Specialist.
 Your task is to generate a cleaned, well-structured, professinal README.md.
-
 Rules:
 - Do NOT hallucinate.
 - Do NOT invent any features, files, tech stack, on your own
 - If anypart do NOT have the efficient data avoid that part (do NOT write placeholders).
 - Do not add any wrong information, broken links
 ---
-
 **Repository Structure**
 {tree_structure}
-
 ** File Summaries **  
 {summaries}
 Previous Readme file:
 {latest_readme}
 Previous reviewer feedback (if any):
 {feedback}
-
 ---
-
 ## README.md Requirements
 Generate a high-quality Github ready README.md file ** ONLY from the provided File Summaries.
-
 The README.md file may include these sections IF APPLICABLE (I mean IF AVAILABLE in the provided data):
 1. **Project Title**
 2. **Short Description**
@@ -59,7 +88,6 @@ The README.md file may include these sections IF APPLICABLE (I mean IF AVAILABLE
 12. **Contributing Guidelines**
 13. **License**
 14. **Credits / Acknowledgements**
-
 You can add other sections if you think needed to add.
 And You can also change the sections name as per the summaries.
 ---
@@ -79,24 +107,29 @@ And You can also change the sections name as per the summaries.
 ---
 ** Now Generate the final README.md **
 Return ONLY valid Markdown
-
-
 """,
     input_variables=["summaries", "tree_structure","latest_readme","feedback"]
 )
-
-
     parser=StrOutputParser()
     chain=prompt|model| parser
+
+    # Hard-cap EVERY piece that goes into the final prompt (not just summaries),
+    # since the existing README, tree structure, and feedback can also be large.
+    final_summaries = truncate_summaries(summaries, max_tokens=2000)
+    tree_structure = truncate_text(tree_structure, max_tokens=500)
+    latest_readme = truncate_text(latest_readme, max_tokens=500)
+
+    if feedback:
+        feedback = [truncate_text(summary_to_text(f), max_tokens=60) for f in feedback[:3]]
+
+    # Small pause to help avoid hitting the per-minute limit right after
+    # all the per-file summary calls that just ran.
+    time.sleep(10)
+
     response=chain.invoke({ 
-        "summaries": summaries,
+        "summaries": final_summaries,
         "tree_structure": tree_structure,
         "latest_readme":latest_readme,
         "feedback": feedback
         })
     return response
-
-
-
-
-
