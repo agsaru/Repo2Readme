@@ -141,7 +141,7 @@ class LocalRepoLoader:
                     if return_skip_info:
                         skipped.append((rel_path, f"encoding_error: {error}"))
 
-                except (OSError, PermissionError) as error:
+                except OSError as error:
                     print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
                     if return_skip_info:
                         skipped.append((rel_path, f"permission_error: {error}"))
@@ -319,7 +319,7 @@ class UrlRepoLoader:
                     if return_skip_info:
                         skipped.append((rel_path, f"encoding_error: {error}"))
 
-                except (OSError, PermissionError) as error:
+                except OSError as error:
                     print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
                     if return_skip_info:
                         skipped.append((rel_path, f"permission_error: {error}"))
