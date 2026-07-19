@@ -136,6 +136,16 @@ class LocalRepoLoader:
 
                     docs.extend(loaded_docs)
 
+                except UnicodeDecodeError as error:
+                    print(f"[ERROR] Encoding error loading {full_path}: {error}")
+                    if return_skip_info:
+                        skipped.append((rel_path, f"encoding_error: {error}"))
+
+                except (OSError, PermissionError) as error:
+                    print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
+                    if return_skip_info:
+                        skipped.append((rel_path, f"permission_error: {error}"))
+
                 except Exception as error:
                     print(f"[ERROR] Cannot load {full_path}: {error}")
                     if return_skip_info:
@@ -194,7 +204,7 @@ class UrlRepoLoader:
         repo_name = self.get_repo_name()
         base_temp = tempfile.gettempdir()
         default_temp_dir = os.path.join(base_temp, repo_name)
-        
+
         # Only create a new temp directory if one wasn't already set (e.g., by tests)
         if self.temp_dir is None:
             self.temp_dir = default_temp_dir
@@ -304,11 +314,20 @@ class UrlRepoLoader:
 
                     docs.extend(loaded_docs)
 
+                except UnicodeDecodeError as error:
+                    print(f"[ERROR] Encoding error loading {full_path}: {error}")
+                    if return_skip_info:
+                        skipped.append((rel_path, f"encoding_error: {error}"))
+
+                except (OSError, PermissionError) as error:
+                    print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
+                    if return_skip_info:
+                        skipped.append((rel_path, f"permission_error: {error}"))
+
                 except Exception as error:
                     print(f"[ERROR] Cannot load {full_path}: {error}")
                     if return_skip_info:
                         skipped.append((rel_path, f"load_error: {error}"))
-
 
         if return_skip_info:
             return docs, self.temp_dir, skipped
