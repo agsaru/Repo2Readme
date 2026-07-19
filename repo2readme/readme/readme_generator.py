@@ -1,4 +1,3 @@
-import time
 from dotenv import load_dotenv
 load_dotenv()
 from langchain_core.prompts import PromptTemplate
@@ -33,11 +32,11 @@ def summary_to_text(item) -> str:
     return str(item)
 
 
-def truncate_summaries(summaries: List, max_tokens: int) -> List[str]:
+def truncate_summaries(summaries: List, max_tokens: int) -> str:
     """Combines and hard-caps the summaries list to fit within max_tokens."""
     text_items = [summary_to_text(s) for s in summaries]
     combined = "\n".join(text_items)
-    return [truncate_text(combined, max_tokens)]
+    return truncate_text(combined, max_tokens)
 
 
 def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str,provider:str, model_name:str, base_url:str):
@@ -120,11 +119,9 @@ Return ONLY valid Markdown
     latest_readme = truncate_text(latest_readme, max_tokens=500)
 
     if feedback:
-        feedback = [truncate_text(summary_to_text(f), max_tokens=60) for f in feedback[:3]]
-
-    # Small pause to help avoid hitting the per-minute limit right after
-    # all the per-file summary calls that just ran.
-    time.sleep(10)
+        feedback = "\n".join(truncate_text(summary_to_text(f), max_tokens=60) for f in feedback[:3])
+    else:
+        feedback = ""
 
     response=chain.invoke({ 
         "summaries": final_summaries,
