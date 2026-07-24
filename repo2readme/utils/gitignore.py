@@ -55,22 +55,5 @@ def is_gitignored(path: str, root_path: str) -> bool:
     if os.path.isdir(path):
         if spec.match_file(rel_path + "/"):
             return True
-        for root, dirs, files in os.walk(path):
-            for file_name in files:
-                file_path = os.path.join(root, file_name)
-                try:
-                    file_rel = os.path.relpath(file_path, root_path).replace("\\", "/")
-                except ValueError:
-                    continue
-                if spec.match_file(file_rel):
-                    return True
-            for directory in dirs:
-                dir_path = os.path.join(root, directory)
-                try:
-                    dir_rel = os.path.relpath(dir_path, root_path).replace("\\", "/")
-                except ValueError:
-                    continue
-                if spec.match_file(dir_rel + "/"):
-                    return True
 
     return False

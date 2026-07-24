@@ -111,3 +111,30 @@ def test_is_gitignored_invalid_path():
     assert is_gitignored("", "") is False
     assert is_gitignored("/nonexistent/file.py", "/nonexistent/root") is False
     assert is_gitignored("main.py", "/nonexistent/root") is False
+
+
+def test_directory_with_ignored_file_is_not_ignored():
+    with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp, "src").mkdir()
+        Path(tmp, "src", "app.py").write_text("print('hello')", encoding="utf-8")
+        Path(tmp, "src", "debug.log").write_text("log", encoding="utf-8")
+
+        Path(tmp, ".gitignore").write_text("*.log\n", encoding="utf-8")
+
+        assert is_gitignored(str(Path(tmp, "src")), tmp) is False
+        assert is_gitignored(str(Path(tmp, "src", "app.py")), tmp) is False
+        assert is_gitignored(str(Path(tmp, "src", "debug.log")), tmp) is True
+
+
+def test_ignored_directory_patterns_match_directory_explicitly():
+    with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp, "src").mkdir()
+        Path(tmp, "src", "app.py").write_text("print('hello')", encoding="utf-8")
+        Path(tmp, "build").mkdir()
+        Path(tmp, "build", "out.bin").write_text("x", encoding="utf-8")
+
+        Path(tmp, ".gitignore").write_text("build/\n", encoding="utf-8")
+
+        assert is_gitignored(str(Path(tmp, "src", "app.py")), tmp) is False
+        assert is_gitignored(str(Path(tmp, "build")), tmp) is True
+        assert is_gitignored(str(Path(tmp, "build", "out.bin")), tmp) is True
