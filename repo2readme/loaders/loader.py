@@ -7,6 +7,7 @@ from langchain_community.document_loaders import TextLoader
 
 from repo2readme.utils.filter import github_file_filter
 from repo2readme.utils.force_remove import force_remove
+from repo2readme.utils.gitignore import is_gitignored
 
 
 class LocalRepoLoader:
@@ -16,11 +17,13 @@ class LocalRepoLoader:
         include_patterns=None,
         exclude_patterns=None,
         max_file_size_kb: int | None = 200,
+        respect_gitignore: bool = False,
     ):
         self.folder_path = folder_path
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
         self.max_file_size_kb = max_file_size_kb
+        self.respect_gitignore = respect_gitignore
 
     def _should_include(self, path: str) -> bool:
         relative_path = os.path.relpath(path, self.folder_path).replace("\\", "/")
@@ -71,6 +74,11 @@ class LocalRepoLoader:
                 if not allowed:
                     if return_skip_info:
                         skipped.append((rel_dir_path + "/", reason))
+                    continue
+
+                if self.respect_gitignore and is_gitignored(full_dir_path, self.folder_path):
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", "ignored by gitignore"))
                     continue
 
                 resolved_path = os.path.realpath(full_dir_path)
@@ -124,6 +132,11 @@ class LocalRepoLoader:
                         skipped.append((rel_path, reason))
                     continue
 
+                if self.respect_gitignore and is_gitignored(full_path, self.folder_path):
+                    if return_skip_info:
+                        skipped.append((rel_path, "ignored by gitignore"))
+                    continue
+
                 try:
                     loader = TextLoader(full_path, autodetect_encoding=True)
                     loaded_docs = loader.load()
@@ -164,12 +177,14 @@ class UrlRepoLoader:
         include_patterns=None,
         exclude_patterns=None,
         max_file_size_kb: int | None = 200,
+        respect_gitignore: bool = False,
     ):
         self.clone_url = clone_url
         self.branch = branch
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
         self.max_file_size_kb = max_file_size_kb
+        self.respect_gitignore = respect_gitignore
         self.temp_dir = None
 
     def get_repo_name(self):
@@ -252,6 +267,11 @@ class UrlRepoLoader:
                         skipped.append((rel_dir_path + "/", reason))
                     continue
 
+                if self.respect_gitignore and is_gitignored(full_dir_path, self.temp_dir):
+                    if return_skip_info:
+                        skipped.append((rel_dir_path + "/", "ignored by gitignore"))
+                    continue
+
                 resolved_path = os.path.realpath(full_dir_path)
 
                 if resolved_path in visited_dirs:
@@ -301,6 +321,11 @@ class UrlRepoLoader:
                 if not allowed:
                     if return_skip_info:
                         skipped.append((rel_path, reason))
+                    continue
+
+                if self.respect_gitignore and is_gitignored(full_path, self.temp_dir):
+                    if return_skip_info:
+                        skipped.append((rel_path, "ignored by gitignore"))
                     continue
                 try:
                     loader = TextLoader(full_path, autodetect_encoding=True)

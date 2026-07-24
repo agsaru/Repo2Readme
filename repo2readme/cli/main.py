@@ -53,9 +53,15 @@ def main():
     help="Preview the analysis without making any API calls.",
 )
 @click.option(
+    "--respect-gitignore",
+    is_flag=True,
+    default=False,
+    help="Respect .gitignore and .git/info/exclude patterns during repository traversal",
+)
+@click.option(
     "--provider",
     default=None,
-    help="LLM provider (groq, google, openai, anthropic, openrouter, ollama, etc.)",
+    help="LLM provider (groq, google, openai, anthropic, openrouter, ollama, etc.)"
 )
 @click.option(
     "--model",
@@ -67,7 +73,7 @@ def main():
     default=None,
     help="Base URL for OpenAI-compatible providers",
 )
-def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run, provider, model, base_url,):
+def run(url, local, output, force, include_patterns, exclude_patterns, max_file_size_kb, dry_run, respect_gitignore, provider, model, base_url,):
     """ Use --url for GitHub repo url and --local for local repo
     """
     if not url and not local:
@@ -81,7 +87,13 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
     with Progress() as progress:
         task = progress.add_task("[cyan]Loading repository...", total=1)
         try:
-            loader = RepoLoader(source, include_patterns=include_patterns, exclude_patterns=exclude_patterns, max_file_size_kb=max_file_size_kb)
+            loader = RepoLoader(
+                source,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size_kb=max_file_size_kb,
+                respect_gitignore=respect_gitignore,
+            )
             if dry_run:
                 files, root_path, loader_obj, skipped = loader.load(return_skip_info=True)
             else:

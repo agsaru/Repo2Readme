@@ -38,6 +38,15 @@ To check what *would* happen without using any API calls or requiring keys at al
 
 By default, common non-essential files (`.git`, `node_modules`, lock files, images, archives, etc.) are skipped. You can adjust this with `--include` / `--exclude` / `--max-file-size-kb` — see [Configuration](./configuration.md) and the [CLI Reference](./cli-reference.md).
 
+## Filter using `.gitignore`
+
+Use `--respect-gitignore` to honor `.gitignore` and `.git/info/exclude` rules while scanning a repository. This is opt-in, so the default behavior remains unchanged.
+
+```bash
+repo2readme run --local ./repo --respect-gitignore
+repo2readme run --url https://github.com/user/repo --respect-gitignore
+```
+
 ## Clear stored API keys
 
 ```bash

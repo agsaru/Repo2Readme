@@ -16,12 +16,22 @@ repo2readme run [OPTIONS]
 | `--local <PATH>` | `-l` | Path to a local repository. |
 | `--output <FILE_PATH>` | `-o` | File path to save the generated README. Defaults to `README.md`. |
 | `--force` | `-f` | Overwrite the output file and skip the token estimation confirmation prompt. |
+| `--respect-gitignore` | | Honor `.gitignore` and `.git/info/exclude` patterns during repository traversal. This is opt-in; default behavior is unchanged. |
 | `--dry-run` | | Preview the analysis (repo tree, token estimate, files to be processed) without making any API calls or requiring API keys. |
 | `--include <PATTERN>` | | Glob pattern for files to include, even if normally filtered out. Can be passed multiple times. |
 | `--exclude <PATTERN>` | | Glob pattern for files to exclude. Can be passed multiple times. |
 | `--max-file-size-kb <N>` | | Skip files larger than N KB. |
 
 You must provide exactly one of `--url` or `--local`.
+
+### `--respect-gitignore`
+
+Honor `.gitignore` and `.git/info/exclude` patterns during repository traversal. This is opt-in, so the default behavior remains unchanged. When enabled, files and directories matching gitignore rules are skipped before language detection, parsing, summarization, and token estimation.
+
+```bash
+repo2readme run --local ./repo --respect-gitignore
+repo2readme run --url https://github.com/user/repo --respect-gitignore
+```
 
 ### `--dry-run`
 
