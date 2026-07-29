@@ -9,6 +9,7 @@ from repo2readme.config import (
 import os
 from repo2readme.utils.tree import generate_tree
 from repo2readme.utils.detect_language import detect_lang
+from repo2readme.cache import SummaryCache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -83,6 +84,20 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
     source = url if url else local
     
     from repo2readme.loaders.repo_loader import RepoLoader
+    from repo2readme.summarize.summary import get_prompt_template_hash
+
+    # Initialize file summary cache
+    cache_dir = os.path.join(os.getcwd(), ".repo2readme", "cache")
+    summarization_config = {
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+    }
+    summary_cache = SummaryCache(
+        cache_dir=cache_dir,
+        config=summarization_config,
+        prompt_template_hash=get_prompt_template_hash(),
+    )
 
     with Progress() as progress:
         task = progress.add_task("[cyan]Loading repository...", total=1)
@@ -182,7 +197,7 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                     "anthropic": "ANTHROPIC_API_KEY",
                     "openrouter": "OPENROUTER_API_KEY",
                     "together": "TOGETHER_API_KEY",
-            }
+                }
 
                 os.environ[provider_env[provider.lower()]] = api_key
 
@@ -208,28 +223,36 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             
             def process_document(doc):
                 meta = doc["metadata"]
+                file_path = meta["file_path"]
                 try:
-                    lang = detect_lang(meta.get("file_type", "text"))
+                    lang = detect_lang(meta.get("file_type", "text"), doc["content"])
+                    cached = summary_cache.get(file_path, doc["content"], lang)
+                    if cached is not None:
+                        with summaries_lock:
+                            summaries.append(cached)
+                        return
+
                     if provider or model or base_url:
                         summary = summarize_file(
-                            file_path=meta["file_path"],
+                            file_path=file_path,
                             language=lang,
                             content=doc["content"],
                             provider=provider,
                             model_name=model,
                             base_url=base_url,
-    )
+                        )
                     else:
                         summary = summarize_file(
-                            file_path=meta["file_path"],
+                            file_path=file_path,
                             language=lang,
                             content=doc["content"],
-    )
+                        )
                     with summaries_lock:
                         summaries.append(summary)
+                    summary_cache.put(file_path, doc["content"], lang, summary, meta.get("mtime", 0))
                 except Exception as e:
                     with errors_lock:
-                        errors.append(f"Error processing {meta.get('file_path')}: {e}")
+                        errors.append(f"Error processing {file_path}: {e}")
             
             with Progress() as progress:
                 task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=total_documents)
@@ -242,6 +265,10 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                     
                     for future in as_completed(futures):
                         progress.update(task, advance=1)
+
+        # Remove cache entries for files that no longer exist
+        current_files = {doc["metadata"]["file_path"] for doc in documents}
+        summary_cache.remove_entries(list(current_files))
 
         rprint("[cyan]Generating README...[/cyan]")
 

@@ -1,5 +1,6 @@
 from langchain_core.prompts import PromptTemplate
 from dotenv import load_dotenv
+import hashlib
 import os
 from langchain_core.output_parsers import JsonOutputParser
 from repo2readme.llm.factory import create_llm
@@ -7,16 +8,7 @@ from repo2readme.llm.factory import create_llm
 load_dotenv()
 
 
-def create_summarizer(file_path, language,
-    content,provider=None, model_name=None, base_url=None,):
-    model = create_llm(
-        provider=provider or "groq",
-        model=model_name or "openai/gpt-oss-120b",
-        base_url=base_url, 
-    )
-    parser=JsonOutputParser()
-    prompt = PromptTemplate(
-        template="""
+PROMPT_TEMPLATE = """
 You are an expert code analyst.
 Your task is generate a summary of the code that summary will help later to 
 generate a README.md file. 
@@ -72,10 +64,26 @@ Code:
 {content}
 Return ONLY JSON.  
 {format_instructions}
-    """,
-    input_variables=["file_path", "language", "content"],
-    partial_variables={"format_instructions": parser.get_format_instructions()}
-)
+"""
+
+
+def get_prompt_template_hash() -> str:
+    return hashlib.sha256(PROMPT_TEMPLATE.encode("utf-8")).hexdigest()
+
+
+def create_summarizer(file_path, language,
+    content,provider=None, model_name=None, base_url=None,):
+    model = create_llm(
+        provider=provider or "groq",
+        model=model_name or "openai/gpt-oss-120b",
+        base_url=base_url, 
+    )
+    parser=JsonOutputParser()
+    prompt = PromptTemplate(
+        template=PROMPT_TEMPLATE,
+        input_variables=["file_path", "language", "content"],
+        partial_variables={"format_instructions": parser.get_format_instructions()}
+    )
 
     chain = prompt | model | parser
     return chain

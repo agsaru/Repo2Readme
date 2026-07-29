@@ -146,6 +146,10 @@ class LocalRepoLoader:
                         doc.metadata["file_name"] = file_name
                         doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
                         doc.metadata["relative_path"] = rel_path
+                        try:
+                            doc.metadata["mtime"] = os.path.getmtime(full_path)
+                        except OSError:
+                            doc.metadata["mtime"] = 0
 
                     docs.extend(loaded_docs)
 
@@ -336,6 +340,10 @@ class UrlRepoLoader:
                         doc.metadata["file_name"] = file_name
                         doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
                         doc.metadata["relative_path"] = rel_path
+                        try:
+                            doc.metadata["mtime"] = os.path.getmtime(full_path)
+                        except OSError:
+                            doc.metadata["mtime"] = 0
 
                     docs.extend(loaded_docs)
 
