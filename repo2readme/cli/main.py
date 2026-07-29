@@ -249,7 +249,9 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                         )
                     with summaries_lock:
                         summaries.append(summary)
-                    summary_cache.put(file_path, doc["content"], lang, summary, meta.get("mtime", 0))
+                    # Only cache successful summaries; failed ones will be retried
+                    if not isinstance(summary, dict) or "error" not in summary:
+                        summary_cache.put(file_path, doc["content"], lang, summary, meta.get("mtime", 0))
                 except Exception as e:
                     with errors_lock:
                         errors.append(f"Error processing {file_path}: {e}")
