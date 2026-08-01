@@ -114,6 +114,7 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 exclude_patterns=exclude_patterns,
                 max_file_size_kb=max_file_size_kb,
                 respect_gitignore=respect_gitignore,
+                max_workers=max_workers,
             )
             if dry_run:
                 files, root_path, loader_obj, skipped = loader.load(return_skip_info=True)

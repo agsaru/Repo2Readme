@@ -158,6 +158,10 @@ def discover_files(
                     )
                     continue
 
+            # Skip non-regular files (FIFOs, sockets, etc.)
+            if not os.path.isfile(full_path):
+                continue
+
             discovered.append(full_path)
 
     # Sort for deterministic ordering
@@ -288,9 +292,10 @@ def load_file_content(
     """
     Safely read the content of a file.
 
-    Uses plain file reading first (fast, no heavy dependencies).
-    Falls back to langchain TextLoader for encoding autodetection only if
-    the plain read fails with a UnicodeDecodeError.
+    When TextLoader is available (not None), uses it as the primary path
+    for backward compatibility with tests. Otherwise, uses plain file
+    reading first (fast, no heavy dependencies) and falls back to TextLoader
+    only if the plain read fails with a UnicodeDecodeError.
 
     Returns (content, None) on success, or (None, error_message) on failure.
     """

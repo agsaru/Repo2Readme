@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Callable, Iterable, Optional
+from typing import Iterable, Optional
 
 from .stages import (
     PipelineContext,
@@ -80,6 +80,10 @@ class TraversalPipeline:
             documents – list of DocumentResult in deterministic order.
             context   – PipelineContext with root_path, skipped, errors.
         """
+        # Reset state for each run
+        self._errors.clear()
+        self._skipped.clear()
+
         # Stage 1: Discover files (sequential, I/O bound via os.walk)
         discovered, ctx = discover_files(
             self.folder_path,
@@ -177,6 +181,7 @@ class TraversalPipeline:
                         self._errors.append(
                             f"Unexpected error processing {ff.relative_path}: {exc}"
                         )
+                        self._skipped.append((ff.relative_path, f"unexpected_error: {exc}"))
 
         # Filter out None entries (failed files) while preserving order
         result = [doc for doc in documents if doc is not None]
