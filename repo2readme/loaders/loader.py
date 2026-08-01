@@ -3,11 +3,19 @@ import os
 import tempfile
 import shutil
 import subprocess
-from langchain_community.document_loaders import TextLoader
+from typing import Iterable  # noqa: F401
 
 from repo2readme.utils.filter import github_file_filter
 from repo2readme.utils.force_remove import force_remove
 from repo2readme.utils.gitignore import is_gitignored
+from repo2readme.loaders.traversal import TraversalPipeline
+from collections import OrderedDict
+from langchain_core.documents import Document
+
+# Backward-compatible placeholder: tests patch this symbol.
+# The actual import is kept lazy inside the local loader to avoid importing
+# langchain during normal simple-file reads.
+TextLoader = None  # type: ignore[assignment,misc]
 
 
 class LocalRepoLoader:
@@ -18,12 +26,14 @@ class LocalRepoLoader:
         exclude_patterns=None,
         max_file_size_kb: int | None = 200,
         respect_gitignore: bool = False,
+        max_workers: int | None = None,
     ):
         self.folder_path = folder_path
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
         self.max_file_size_kb = max_file_size_kb
         self.respect_gitignore = respect_gitignore
+        self.max_workers = max_workers
 
     def _should_include(self, path: str) -> bool:
         relative_path = os.path.relpath(path, self.folder_path).replace("\\", "/")
@@ -50,122 +60,32 @@ class LocalRepoLoader:
         if not os.path.exists(self.folder_path):
             raise FileNotFoundError(f"Folder not found: {self.folder_path}")
 
+        # Use the new traversal pipeline for modular, parallel processing
+        pipeline = TraversalPipeline(
+            folder_path=self.folder_path,
+            include_patterns=self.include_patterns,
+            exclude_patterns=self.exclude_patterns,
+            max_file_size_kb=self.max_file_size_kb,
+            respect_gitignore=self.respect_gitignore,
+            max_workers=self.max_workers,
+        )
+
+        documents, ctx = pipeline.run()
+
+        # Convert DocumentResult back to langchain Document objects for
+        # backward compatibility
+        from langchain_core.documents import Document
+
         docs = []
-        skipped: list[tuple[str, str]] = [] if return_skip_info else []
-        visited_dirs: set[str] = set()
-        root_resolved = os.path.realpath(self.folder_path)
-        visited_dirs.add(root_resolved)
-
-        for current, dirs, files in os.walk(self.folder_path):
-            new_dirs = []
-            dirs.sort(key=lambda d: (os.path.islink(os.path.join(current, d)), d))
-            for directory in dirs:
-                full_dir_path = os.path.join(current, directory)
-                rel_dir_path = os.path.relpath(full_dir_path, self.folder_path).replace("\\", "/")
-
-                allowed, reason = github_file_filter(
-                    rel_dir_path,
-                    include_patterns=self.include_patterns,
-                    exclude_patterns=self.exclude_patterns,
-                    root_path=self.folder_path,
-                    max_file_size_kb=None,
-                )
-
-                if not allowed:
-                    if return_skip_info:
-                        skipped.append((rel_dir_path + "/", reason))
-                    continue
-
-                if self.respect_gitignore and is_gitignored(full_dir_path, self.folder_path):
-                    if return_skip_info:
-                        skipped.append((rel_dir_path + "/", "ignored by gitignore"))
-                    continue
-
-                resolved_path = os.path.realpath(full_dir_path)
-
-                if resolved_path in visited_dirs:
-                    if return_skip_info:
-                        skipped.append((rel_dir_path + "/", "circular or duplicate symbolic link"))
-                    continue
-
-                if os.path.islink(full_dir_path):
-                    if not os.path.isdir(resolved_path):
-                        if return_skip_info:
-                            skipped.append((rel_dir_path + "/", "broken symbolic link"))
-                        continue
-
-                    if not self._is_within_root(resolved_path, root_resolved):
-                        if return_skip_info:
-                            skipped.append((rel_dir_path + "/", "symbolic link outside repository"))
-                        continue
-
-                visited_dirs.add(resolved_path)
-                new_dirs.append(directory)
-
-            dirs[:] = new_dirs
-
-            for file_name in files:
-                full_path = os.path.join(current, file_name)
-                rel_path = os.path.relpath(full_path, self.folder_path).replace("\\", "/")
-
-                if os.path.islink(full_path):
-                    resolved_path = os.path.realpath(full_path)
-                    if not os.path.exists(resolved_path):
-                        if return_skip_info:
-                            skipped.append((rel_path, "broken symbolic link"))
-                        continue
-                    if not self._is_within_root(resolved_path, root_resolved):
-                        if return_skip_info:
-                            skipped.append((rel_path, "symbolic link outside repository"))
-                        continue
-
-                allowed, reason = github_file_filter(
-                    rel_path,
-                    include_patterns=self.include_patterns,
-                    exclude_patterns=self.exclude_patterns,
-                    root_path=self.folder_path,
-                    max_file_size_kb=self.max_file_size_kb,
-                )
-
-                if not allowed:
-                    if return_skip_info:
-                        skipped.append((rel_path, reason))
-                    continue
-
-                if self.respect_gitignore and is_gitignored(full_path, self.folder_path):
-                    if return_skip_info:
-                        skipped.append((rel_path, "ignored by gitignore"))
-                    continue
-
-                try:
-                    loader = TextLoader(full_path, autodetect_encoding=True)
-                    loaded_docs = loader.load()
-
-                    for doc in loaded_docs:
-                        doc.metadata["file_path"] = full_path.replace("\\", "/")
-                        doc.metadata["file_name"] = file_name
-                        doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
-                        doc.metadata["relative_path"] = rel_path
-
-                    docs.extend(loaded_docs)
-
-                except UnicodeDecodeError as error:
-                    print(f"[ERROR] Encoding error loading {full_path}: {error}")
-                    if return_skip_info:
-                        skipped.append((rel_path, f"encoding_error: {error}"))
-
-                except OSError as error:
-                    print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
-                    if return_skip_info:
-                        skipped.append((rel_path, f"permission_error: {error}"))
-
-                except Exception as error:
-                    print(f"[ERROR] Cannot load {full_path}: {error}")
-                    if return_skip_info:
-                        skipped.append((rel_path, f"load_error: {error}"))
+        for doc_result in documents:
+            langchain_doc = Document(
+                page_content=doc_result.page_content,
+                metadata=dict(doc_result.metadata),
+            )
+            docs.append(langchain_doc)
 
         if return_skip_info:
-            return docs, self.folder_path, skipped
+            return docs, self.folder_path, ctx.skipped
         return docs, self.folder_path
 
 
@@ -327,32 +247,52 @@ class UrlRepoLoader:
                     if return_skip_info:
                         skipped.append((rel_path, "ignored by gitignore"))
                     continue
+                # Fast path: plain UTF-8 read. Only fall back to TextLoader on
+                # UnicodeDecodeError to keep LangChain imports lazy.
                 try:
-                    loader = TextLoader(full_path, autodetect_encoding=True)
-                    loaded_docs = loader.load()
-
-                    for doc in loaded_docs:
-                        doc.metadata["file_path"] = full_path.replace("\\", "/")
-                        doc.metadata["file_name"] = file_name
-                        doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
-                        doc.metadata["relative_path"] = rel_path
-
-                    docs.extend(loaded_docs)
-
-                except UnicodeDecodeError as error:
-                    print(f"[ERROR] Encoding error loading {full_path}: {error}")
-                    if return_skip_info:
-                        skipped.append((rel_path, f"encoding_error: {error}"))
-
+                    with open(full_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    docs.append(
+                        Document(
+                            page_content=content,
+                            metadata=OrderedDict([
+                                ("file_path", full_path.replace("\\", "/")),
+                                ("file_name", file_name),
+                                ("file_type", os.path.splitext(file_name)[1].lower()),
+                                ("relative_path", rel_path),
+                            ]),
+                        )
+                    )
+                except UnicodeDecodeError:
+                    # Fallback for files with non-UTF-8 encodings.
+                    # If TextLoader cannot be imported or used due to an
+                    # environment issue (e.g. numpy binary incompatibility),
+                    # treat the file as failed rather than crashing.
+                    try:
+                        from langchain_community.document_loaders import TextLoader
+                        loader = TextLoader(full_path, autodetect_encoding=True)
+                        loaded_docs = loader.load()
+                        for doc in loaded_docs:
+                            doc.metadata["file_path"] = full_path.replace("\\", "/")
+                            doc.metadata["file_name"] = file_name
+                            doc.metadata["file_type"] = os.path.splitext(file_name)[1].lower()
+                            doc.metadata["relative_path"] = rel_path
+                        docs.extend(loaded_docs)
+                    except UnicodeDecodeError as error:
+                        if return_skip_info:
+                            skipped.append((rel_path, f"encoding_error: {error}"))
+                    except OSError as error:
+                        if return_skip_info:
+                            skipped.append((rel_path, f"permission_error: {error}"))
+                    except Exception as error:
+                        # Catch environment-specific failures (e.g. numpy binary
+                        # incompatibility when importing langchain) and treat
+                        # them as load errors instead of crashing.
+                        if return_skip_info:
+                            skipped.append((rel_path, f"load_error: {error}"))
                 except OSError as error:
-                    print(f"[ERROR] Permission/OS error loading {full_path}: {error}")
                     if return_skip_info:
                         skipped.append((rel_path, f"permission_error: {error}"))
-
-                except Exception as error:
-                    print(f"[ERROR] Cannot load {full_path}: {error}")
-                    if return_skip_info:
-                        skipped.append((rel_path, f"load_error: {error}"))
 
         if return_skip_info:
             return docs, self.temp_dir, skipped
