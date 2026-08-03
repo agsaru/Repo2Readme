@@ -1,18 +1,29 @@
 from dotenv import load_dotenv
 load_dotenv()
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from typing import List
-from repo2readme.llm.factory import create_llm
-def generate_readme(summaries:List[str],tree_structure:str,feedback:List[str],latest_readme:str,provider:str, model_name:str, base_url:str):
+from langchain_core.prompts import PromptTemplate  # noqa: E402
+from langchain_core.output_parsers import StrOutputParser  # noqa: E402
+from typing import List  # noqa: E402
+from repo2readme.llm.factory import create_llm  # noqa: E402
+
+
+def generate_readme(
+    summaries: List[str],
+    tree_structure: str,
+    feedback: List[str],
+    latest_readme: str,
+    provider: str,
+    model_name: str,
+    base_url: str,
+    dependency_overview: str = "",
+):
     model = create_llm(
-    provider= provider or "groq",
-    model= model_name or "openai/gpt-oss-120b",
-    base_url=base_url
-)
+        provider=provider or "groq",
+        model=model_name or "openai/gpt-oss-120b",
+        base_url=base_url,
+    )
 
     prompt = PromptTemplate(
-    template="""
+        template="""
 You are an expert README Generator and a Markdown file Specialist.
 Your task is to generate a cleaned, well-structured, professinal README.md.
 
@@ -32,7 +43,7 @@ Previous Readme file:
 {latest_readme}
 Previous reviewer feedback (if any):
 {feedback}
-
+{dependency_overview}
 ---
 
 ## README.md Requirements
@@ -82,21 +93,16 @@ Return ONLY valid Markdown
 
 
 """,
-    input_variables=["summaries", "tree_structure","latest_readme","feedback"]
-)
+        input_variables=["summaries", "tree_structure", "latest_readme", "feedback", "dependency_overview"],
+    )
 
-
-    parser=StrOutputParser()
-    chain=prompt|model| parser
-    response=chain.invoke({ 
+    parser = StrOutputParser()
+    chain = prompt | model | parser
+    response = chain.invoke({
         "summaries": summaries,
         "tree_structure": tree_structure,
-        "latest_readme":latest_readme,
-        "feedback": feedback
-        })
+        "latest_readme": latest_readme,
+        "feedback": feedback,
+        "dependency_overview": dependency_overview,
+    })
     return response
-
-
-
-
-

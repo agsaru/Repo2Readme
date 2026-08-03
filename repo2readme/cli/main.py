@@ -132,6 +132,12 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             "content": f.page_content,
             "metadata": f.metadata
         })
+    
+    # Build dependency graph for README enrichment
+    from repo2readme.dependency_graph import build_dependency_graph
+    dependency_graph = build_dependency_graph(documents)
+    dependency_overview = dependency_graph.to_markdown_summary()
+
     tree = generate_tree(root_path)
 
     # Estimate token count (roughly 3 characters per token)
@@ -280,7 +286,7 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
         summary_cache.remove_entries(list(current_files))
 
         rprint("[cyan]Generating README...[/cyan]")
-
+        
         initial_state = {
             "summaries": summaries,
             "tree_structure": tree,
@@ -292,6 +298,7 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
             "provider": provider,
             "model": model,
             "base_url": base_url,
+            "dependency_overview": dependency_overview,
         }
 
         final_state = workflow.invoke(initial_state)
