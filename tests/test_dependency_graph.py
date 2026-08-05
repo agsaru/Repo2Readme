@@ -414,7 +414,8 @@ class TestDependencyGraph:
         graph.add_edge("/b.py", "/c.py")
         graph.add_edge("/d.py", "/c.py")
         core = graph.get_core_modules(top_n=2)
-        assert len(core) == 2
+        # Only /c.py has incoming dependencies; entry points are excluded
+        assert len(core) == 1
         assert core[0] == ("/c.py", 3)
 
     def test_dependency_stats(self):
@@ -729,3 +730,13 @@ class TestEnrichReadme:
         result = enrich_readme_with_graph(readme, graph)
         assert "# Title" in result
         assert "## Section" in result
+
+    def test_enrichment_idempotent(self):
+        """Enriching twice should not duplicate the dependency overview."""
+        graph = DependencyGraph()
+        graph.add_edge("/a.py", "/b.py")
+        readme = "# My Project\n\nSome content."
+        result1 = enrich_readme_with_graph(readme, graph)
+        result2 = enrich_readme_with_graph(result1, graph)
+        assert result2.count("## Dependency Overview") == 1
+        assert result2.count("### Core Modules") == 1

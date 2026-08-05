@@ -90,13 +90,14 @@ class DependencyGraph:
 
     def get_core_modules(self, top_n: int = 10) -> list[tuple[str, int]]:
         """
-        Return top-N most-connected files by incoming dependency count.
+        Return top-N files most depended on by other modules.
 
-        These are files that many other files depend on.
+        Filters out entry points (zero incoming dependencies) so that core
+        modules are those that actually have dependents.
         Returns list of (file_path, incoming_count) sorted by count descending.
         """
         ranked = sorted(
-            [(f, self.get_incoming_count(f)) for f in self.nodes],
+            [(f, self.get_incoming_count(f)) for f in self.nodes if self.get_incoming_count(f) > 0],
             key=lambda x: x[1],
             reverse=True,
         )
@@ -147,7 +148,7 @@ class DependencyGraph:
         core = self.get_core_modules(top_n=5)
         if core:
             lines.append("### Core Modules\n")
-            lines.append("Files with the most dependencies:\n")
+            lines.append("Files most depended on by other modules:\n")
             for file_path, count in core:
                 # Extract just the filename and relative path
                 display = file_path.split("/")[-1] if "/" in file_path else file_path
@@ -202,9 +203,12 @@ def _resolve_python_import(
     if not import_path or import_path.startswith("_"):
         return None
 
+    # Determine source directory for both relative and absolute imports
+    source_dir = source_file.rsplit("/", 1)[0] if "/" in source_file else ""
+    base_dir = source_dir
+
     # Handle relative imports
     if import_path.startswith("."):
-        source_dir = source_file.rsplit("/", 1)[0] if "/" in source_file else ""
         # Count leading dots
         dots = 0
         for char in import_path:
@@ -218,22 +222,51 @@ def _resolve_python_import(
         base_dir = source_dir
         for _ in range(max(0, dots - 1)):
             base_dir = base_dir.rsplit("/", 1)[0] if "/" in base_dir else ""
-    else:
-        base_dir = source_file.rsplit("/", 1)[0] if "/" in source_file else ""
-        module_path = import_path
 
-    if not module_path:
+        # For sibling imports like "from . import helper", module_path is empty
+        # Search for the module directly in base_dir
+        if not module_path:
+            # Look for helper.py or helper/__init__.py in base_dir
+            for candidate in [f"{base_dir}/helper.py", f"{base_dir}/helper/__init__.py"]:
+                if candidate in files_map:
+                    return candidate
+            return None
+
+        # Try relative to the computed base_dir
+        for candidate in [
+            f"{base_dir}/{module_path.replace('.', '/')}/__init__.py",
+            f"{base_dir}/{module_path.replace('.', '/')}.py",
+        ]:
+            if candidate in files_map:
+                return candidate
         return None
 
-    # Try as package __init__.py
-    candidate = f"{base_dir}/{module_path.replace('.', '/')}/__init__.py"
-    if candidate in files_map:
-        return candidate
+    # Absolute package import (e.g. src.utils.helpers from src/main.py)
+    # First try relative to source file's directory
+    module_path = import_path
+    for candidate in [
+        f"{base_dir}/{module_path.replace('.', '/')}/__init__.py",
+        f"{base_dir}/{module_path.replace('.', '/')}.py",
+    ]:
+        if candidate in files_map:
+            return candidate
 
-    # Try as module file, including sibling module names like helpers.py
-    candidate = f"{base_dir}/{module_path.replace('.', '/')}.py"
-    if candidate in files_map:
-        return candidate
+    # Then try candidate package roots from files_map
+    package_roots: set[str] = set()
+    for path in files_map:
+        parts = path.split("/")
+        prefix = ""
+        for part in parts[:-1]:
+            prefix = f"{prefix}/{part}" if prefix else f"/{part}"
+            package_roots.add(prefix)
+
+    for root in sorted(package_roots):
+        for candidate in [
+            f"{root}/{module_path.replace('.', '/')}/__init__.py",
+            f"{root}/{module_path.replace('.', '/')}.py",
+        ]:
+            if candidate in files_map:
+                return candidate
 
     return None
 
@@ -263,38 +296,55 @@ def _resolve_js_import(
         return None
 
     source_dir = source_file.rsplit("/", 1)[0] if "/" in source_file else ""
-    base_dir = source_dir
 
-    # Remove query strings, hashes, and leading ./ if present
+    # Remove query strings and hashes
     clean_path = import_path.split("?")[0].split("#")[0]
     if clean_path.startswith("./"):
         clean_path = clean_path[2:]
 
-    # Try direct path
-    candidate = f"{base_dir}/{clean_path}"
-    if candidate in files_map:
-        return candidate
+    # Normalize relative segments (resolve '.' and '..' without filesystem access)
+    clean_path = _normalize_js_path(clean_path)
 
-    # Try with .js extension
-    candidate = f"{base_dir}/{clean_path}.js"
-    if candidate in files_map:
-        return candidate
+    # If path goes above source, compute relative base
+    if clean_path.startswith("../"):
+        base_dir = source_dir
+        while clean_path.startswith("../"):
+            clean_path = clean_path[3:]
+            base_dir = base_dir.rsplit("/", 1)[0] if "/" in base_dir else ""
+        clean_path = f"{base_dir}/{clean_path}" if base_dir else clean_path
+    else:
+        base_dir = source_dir
+        clean_path = f"{base_dir}/{clean_path}" if base_dir else clean_path
 
-    # Try with .ts extension
-    candidate = f"{base_dir}/{clean_path}.ts"
-    if candidate in files_map:
-        return candidate
+    extensions = ["", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"]
+    index_names = ["index.js", "index.jsx", "index.ts", "index.tsx", "index.mjs", "index.cjs"]
 
-    # Try as directory index
-    candidate = f"{base_dir}/{clean_path}/index.js"
-    if candidate in files_map:
-        return candidate
+    for ext in extensions:
+        candidate = f"{clean_path}{ext}"
+        if candidate in files_map:
+            return candidate
 
-    candidate = f"{base_dir}/{clean_path}/index.ts"
-    if candidate in files_map:
-        return candidate
+    for idx in index_names:
+        candidate = f"{clean_path}/{idx}"
+        if candidate in files_map:
+            return candidate
 
     return None
+
+
+def _normalize_js_path(path: str) -> str:
+    """
+    Normalize a JS-style relative path by resolving '.' and '..' segments.
+    """
+    parts = path.split("/")
+    out: list[str] = []
+    for part in parts:
+        if part == "..":
+            if out:
+                out.pop()
+        elif part and part != ".":
+            out.append(part)
+    return "/".join(out)
 
 
 def _parse_python_imports(content: str) -> list[str]:
@@ -391,13 +441,17 @@ def build_dependency_graph(documents: list[dict]) -> DependencyGraph:
         language = _detect_language_from_ext(file_type)
 
         if language == "python":
+            # Register source node so isolated Python files are tracked
+            graph.nodes.add(source_file)
             imports = _parse_python_imports(content)
             resolver = _resolve_python_import
         elif language in ("javascript", "typescript"):
+            # Register source node so isolated JS/TS files are tracked
+            graph.nodes.add(source_file)
             imports = _parse_js_imports(content)
             resolver = _resolve_js_import
         else:
-            # Unsupported language: skip
+            # Unsupported language: skip entirely
             continue
 
         # Resolve imports to actual files
@@ -436,7 +490,9 @@ def enrich_readme_with_graph(readme: str, graph: DependencyGraph) -> str:
     """
     Enhance an existing README with dependency graph information.
 
-    Appends a "Dependency Overview" section if the graph has meaningful data.
+    Appends a "Dependency Overview" section if the graph has meaningful data
+    and the section is not already present. This ensures idempotency across
+    multiple invocations.
 
     Args:
         readme: Original README markdown string
@@ -448,6 +504,10 @@ def enrich_readme_with_graph(readme: str, graph: DependencyGraph) -> str:
     summary = graph.to_markdown_summary()
 
     if not summary:
+        return readme
+
+    # Avoid duplicate sections if already present
+    if "## Dependency Overview" in readme:
         return readme
 
     # Append dependency overview at the end

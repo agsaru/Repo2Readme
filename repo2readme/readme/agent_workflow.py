@@ -32,9 +32,6 @@ def generate_readme_node(state:ReadmeState):
        base_url=state["base_url"],
        dependency_overview=state.get("dependency_overview", "")
     )
-    # Enrich README with dependency graph information
-    if state.get("dependency_overview"):
-        readme = readme.rstrip() + "\n\n" + state["dependency_overview"]
     
     return {
         'readme':[readme]

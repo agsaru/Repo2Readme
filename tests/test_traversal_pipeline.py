@@ -189,8 +189,8 @@ class TestTraversalPipeline:
     def test_pipeline_with_exclude(self, sample_repo):
         pipeline = TraversalPipeline(sample_repo, exclude_patterns=["*.md"])
         documents, ctx = pipeline.run()
-        # main.py, utils.py, .gitignore (README.md and guide.md excluded)
-        assert len(documents) == 3
+        # main.py, utils.py (README.md and guide.md excluded; .gitignore filtered by default)
+        assert len(documents) == 2
 
     def test_pipeline_gitignore(self, tmp_path):
         repo = tmp_path / "gitignore_pipeline"
