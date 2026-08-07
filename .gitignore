@@ -36,6 +36,19 @@ tmp/
 *.log
 
 # -----------------------------
+# repo2readme runtime data
+# -----------------------------
+.repo2readme/
+~/.repo2readme_env.json
+
+# -----------------------------
+# Testing
+# -----------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+
+# -----------------------------
 # OS System Files
 # -----------------------------
 .DS_Store
