@@ -26,6 +26,14 @@ export GOOGLE_API_KEY="your_google_api_key"
 
 This is useful for CI pipelines or if you don't want keys persisted to disk.
 
+You can also copy [`.env.example`](../.env.example) to `.env` in your project
+root and fill in the keys there — `repo2readme` loads `.env` automatically
+via `python-dotenv`.
+
+```bash
+cp .env.example .env
+```
+
 ## Resetting your keys
 
 If a key is wrong, expired, or you want to switch accounts:
