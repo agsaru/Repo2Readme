@@ -11,13 +11,16 @@ from __future__ import annotations
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from .stages import (
     PipelineContext,
     FilteredFile,
     FileMetadata,
     DocumentResult,
+    ProgressCallback,
+    ProgressEventType,
+    TraversalProgressEvent,
     discover_files,
     filter_file,
     extract_file_metadata,
@@ -45,6 +48,15 @@ class TraversalPipeline:
     Shared structures (skipped list, errors list) are protected by locks.
     Output ordering is deterministic: documents are returned in the same
     order as discovered files, regardless of worker scheduling.
+
+    Progress reporting
+    ------------------
+    Pass an optional ``progress_callback`` to receive
+    :class:`TraversalProgressEvent` notifications while ``run()`` is
+    processing. Events are emitted from the thread that calls ``run()``
+    (never from pool worker threads) so the callback needs no locking.
+    The callback is strictly optional — when omitted, behavior is identical
+    to previous releases. See ``TraversalProgressEvent`` for details.
     """
 
     def __init__(
@@ -55,6 +67,7 @@ class TraversalPipeline:
         max_file_size_kb: int | None = 200,
         respect_gitignore: bool = False,
         max_workers: int | None = None,
+        progress_callback: ProgressCallback | None = None,
     ):
         self.folder_path = folder_path
         self.include_patterns = include_patterns
@@ -62,6 +75,7 @@ class TraversalPipeline:
         self.max_file_size_kb = max_file_size_kb
         self.respect_gitignore = respect_gitignore
         self.max_workers = max_workers
+        self.progress_callback = progress_callback
 
         # Thread-safe shared state
         self._lock = threading.Lock()
@@ -79,6 +93,15 @@ class TraversalPipeline:
         (documents, context)
             documents – list of DocumentResult in deterministic order.
             context   – PipelineContext with root_path, skipped, errors.
+
+        Progress
+        --------
+        When a ``progress_callback`` was registered, a
+        ``FILES_DISCOVERED`` event is emitted once discovery completes and
+        exactly one terminal event (``FILE_COMPLETED``, ``FILE_SKIPPED`` or
+        ``FILE_FAILED``) is emitted per discovered file, so the final
+        ``completed`` count equals ``total`` and progress is never
+        double-counted.
         """
         # Reset state for each run
         self._errors.clear()
@@ -94,6 +117,16 @@ class TraversalPipeline:
         )
         self._skipped = ctx.skipped
 
+        # The total workload is now known — notify once so callers can set
+        # up progress displays. All counters below are only ever mutated on
+        # this (the caller's) thread, never on pool worker threads.
+        total_work = len(discovered)
+        self._emit(
+            ProgressEventType.FILES_DISCOVERED,
+            completed=0,
+            total=total_work,
+        )
+
         if not discovered:
             return [], PipelineContext(
                 root_path=self.folder_path,
@@ -104,6 +137,7 @@ class TraversalPipeline:
         # Stage 2: Filter files (can be parallelised, but filtering is cheap;
         # we batch it with loading for efficiency)
         filtered: list[FilteredFile] = []
+        completed_count = 0
         for abs_path in discovered:
             ff, reason = filter_file(
                 abs_path,
@@ -121,6 +155,14 @@ class TraversalPipeline:
                         "\\", "/"
                     )
                     self._skipped.append((rel, reason or "filtered"))
+                completed_count += 1
+                self._emit(
+                    ProgressEventType.FILE_SKIPPED,
+                    completed=completed_count,
+                    total=total_work,
+                    relative_path=rel,
+                    detail=reason or "filtered",
+                )
 
         if not filtered:
             return [], PipelineContext(
@@ -134,8 +176,12 @@ class TraversalPipeline:
         documents: list[Optional[DocumentResult]] = [None] * len(filtered)
         worker_count = self._resolve_worker_count(len(filtered))
 
-        def process_file(index: int, ff: FilteredFile) -> None:
-            """Process a single file through stages 3-6."""
+        def process_file(index: int, ff: FilteredFile) -> Optional[str]:
+            """Process a single file through stages 3-6.
+
+            Returns the skip reason when the file cannot be loaded, or
+            ``None`` on success (the document is placed in ``documents``).
+            """
             # Stage 3: Load content (I/O bound)
             content, error = load_file_content(ff.absolute_path)
             if error is not None:
@@ -144,7 +190,7 @@ class TraversalPipeline:
                         f"Error loading {ff.relative_path}: {error}"
                     )
                     self._skipped.append((ff.relative_path, error))
-                return
+                return error
 
             # Stage 4: Extract metadata
             metadata = extract_file_metadata(ff, content)
@@ -165,6 +211,7 @@ class TraversalPipeline:
 
             # Place result at the correct index for ordering
             documents[index] = doc
+            return None
 
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             futures = {
@@ -172,16 +219,44 @@ class TraversalPipeline:
                 for i, ff in enumerate(filtered)
             }
             for future in as_completed(futures):
-                # Re-raise any unexpected exception
+                # Emit exactly one terminal progress event per file.
+                # `as_completed` is consumed on the calling thread, so
+                # `completed_count` (and the callbacks themselves) never
+                # run on pool worker threads.
+                idx = futures[future]
+                ff = filtered[idx]
+                completed_count += 1
                 exc = future.exception()
                 if exc is not None:
-                    idx = futures[future]
-                    ff = filtered[idx]
                     with self._lock:
                         self._errors.append(
                             f"Unexpected error processing {ff.relative_path}: {exc}"
                         )
                         self._skipped.append((ff.relative_path, f"unexpected_error: {exc}"))
+                    self._emit(
+                        ProgressEventType.FILE_FAILED,
+                        completed=completed_count,
+                        total=total_work,
+                        relative_path=ff.relative_path,
+                        detail=f"unexpected_error: {exc}",
+                    )
+                else:
+                    skip_reason = future.result()
+                    if skip_reason is not None:
+                        self._emit(
+                            ProgressEventType.FILE_SKIPPED,
+                            completed=completed_count,
+                            total=total_work,
+                            relative_path=ff.relative_path,
+                            detail=skip_reason,
+                        )
+                    else:
+                        self._emit(
+                            ProgressEventType.FILE_COMPLETED,
+                            completed=completed_count,
+                            total=total_work,
+                            relative_path=ff.relative_path,
+                        )
 
         # Filter out None entries (failed files) while preserving order
         result = [doc for doc in documents if doc is not None]
@@ -191,6 +266,39 @@ class TraversalPipeline:
             skipped=self._skipped,
             errors=self._errors,
         )
+
+    def _emit(
+        self,
+        event_type: ProgressEventType,
+        completed: int,
+        total: int,
+        relative_path: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        """
+        Build a progress event and forward it to the registered callback.
+
+        Callbacks are always invoked from the thread calling ``run()``,
+        never from pool worker threads. An exception raised by the callback
+        is handled deliberately: the failure is recorded in ``ctx.errors`` so
+        it stays visible to the caller, and traversal continues so a buggy
+        observer can never corrupt pipeline state or prevent completion.
+        """
+        if self.progress_callback is None:
+            return
+
+        event = TraversalProgressEvent(
+            event_type=event_type,
+            completed=completed,
+            total=total,
+            relative_path=relative_path,
+            detail=detail,
+        )
+        try:
+            self.progress_callback(event)
+        except Exception as exc:  # noqa: BLE001 - observer failures are isolated
+            with self._lock:
+                self._errors.append(f"Progress callback error: {exc}")
 
     def _resolve_worker_count(self, total_files: int) -> int:
         """Determine the number of worker threads to use."""

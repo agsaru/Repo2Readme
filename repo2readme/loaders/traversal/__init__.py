@@ -22,6 +22,9 @@ from .stages import (
     FileMetadata,
     DocumentResult,
     PipelineContext,
+    ProgressEventType,
+    TraversalProgressEvent,
+    ProgressCallback,
 )
 
 __all__ = [
@@ -31,4 +34,7 @@ __all__ = [
     "FileMetadata",
     "DocumentResult",
     "PipelineContext",
+    "ProgressEventType",
+    "TraversalProgressEvent",
+    "ProgressCallback",
 ]

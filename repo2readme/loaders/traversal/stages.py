@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Iterable, Optional
+from enum import Enum
+from typing import Callable, Iterable, Optional
 from collections import OrderedDict
 
 from repo2readme.utils.filter import github_file_filter
@@ -70,6 +71,53 @@ class PipelineContext:
     root_path: str
     skipped: list[tuple[str, str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Progress reporting (optional, UI-agnostic)
+# ---------------------------------------------------------------------------
+
+
+class ProgressEventType(str, Enum):
+    """
+    Classification of a progress event emitted by the traversal pipeline.
+
+    Values are stable strings so any UI / framework can consume them
+    without importing this module.
+    """
+
+    FILES_DISCOVERED = "files_discovered"
+    FILE_COMPLETED = "file_completed"
+    FILE_SKIPPED = "file_skipped"
+    FILE_FAILED = "file_failed"
+
+
+@dataclass(frozen=True)
+class TraversalProgressEvent:
+    """
+    Progress notification emitted for long-running repository traversal.
+
+    ``completed`` counts every discovered file that has reached a terminal
+    outcome (processed, skipped or failed) — including the file this event
+    refers to, when there is one. ``total`` is the number of files discovered
+    for the current run, so callers can render ``completed / total`` as a
+    percentage.
+
+    ``relative_path`` and ``detail`` are only populated for file-scoped
+    events (``FILE_COMPLETED`` / ``FILE_SKIPPED`` / ``FILE_FAILED``).
+
+    Callbacks are always invoked from the thread that calls
+    ``TraversalPipeline.run()``, never from pool worker threads.
+    """
+
+    event_type: ProgressEventType
+    completed: int
+    total: int
+    relative_path: str | None = None
+    detail: str | None = None
+
+
+ProgressCallback = Callable[[TraversalProgressEvent], None]
 
 
 # ---------------------------------------------------------------------------
