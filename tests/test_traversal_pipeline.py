@@ -21,6 +21,7 @@ from repo2readme.loaders.traversal.pipeline import TraversalPipeline
 from repo2readme.loaders.traversal.stages import (
     discover_files,
     filter_file,
+    check_binary_file,
     extract_file_metadata,
     detect_file_language,
     create_document,
@@ -540,4 +541,169 @@ class TestProgressCallbacks:
         assert len(events) == 6  # 1 discovered + 5 completed
         assert any("Progress callback error" in e for e in ctx.errors)
 
+
+class TestBinaryDetection:
+    """Integration tests for binary file detection in the traversal pipeline."""
+
+    def test_png_skipped_in_pipeline(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        # Use .dat so the file passes default filtering; binary detection
+        # should still catch the PNG content signature.
+        (repo / "image.dat").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "text.py"
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["image.dat"] == "binary_file"
+
+    def test_jpeg_skipped_in_pipeline(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "photo.dat").write_bytes(
+            b"\xff\xd8\xff\xe0" + b"\x00" * 100
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["photo.dat"] == "binary_file"
+
+    def test_null_byte_file_skipped(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "random.dat").write_bytes(b"\x00\x01\x02\x03")
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["random.dat"] == "binary_file"
+
+    def test_arbitrary_binary_skipped(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "datafile").write_bytes(
+            b"\xde\xad\xbe\xef\xca\xfe\xba\xbe\x13\x37"
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["datafile"] == "binary_file"
+
+    def test_mixed_repo_processes_successfully(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "a.py").write_text("print('a')", encoding="utf-8")
+        (repo / "b.dat").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+        (repo / "c.py").write_text("print('c')", encoding="utf-8")
+        (repo / "d.py").write_text("print('d')", encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 3
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert paths == ["a.py", "c.py", "d.py"]
+
+    @patch("repo2readme.loaders.traversal.pipeline.load_file_content")
+    def test_binary_does_not_reach_text_decoding(self, mock_load, tmp_path):
+        mock_load.return_value = ("content", None)
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "image.dat").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        # load_file_content should only be called for text.py
+        assert mock_load.call_count == 1
+        assert "text.py" in mock_load.call_args[0][0]
+
+    @patch("repo2readme.loaders.traversal.pipeline.detect_file_language")
+    def test_binary_does_not_reach_language_detection(self, mock_detect, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "image.dat").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        # detect_file_language should only be called for text.py
+        assert mock_detect.call_count == 1
+        # First positional arg is FileMetadata; check its relative_path
+        assert mock_detect.call_args[0][0].relative_path == "text.py"
+
+    def test_binary_in_skipped_reporting(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "text.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "image.dat").write_bytes(
+            b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        )
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["image.dat"] == "binary_file"
+
+    def test_existing_filtering_unchanged(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "main.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "node_modules").mkdir()
+        (repo / "node_modules" / "pkg.js").write_text("x", encoding="utf-8")
+        (repo / "large.dat").write_bytes(b"\x00" * 1024)
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        # main.py should be processed, node_modules excluded, large.dat is binary
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "main.py"
+
+    def test_traversal_ordering_unchanged(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "z.py").write_text("z", encoding="utf-8")
+        (repo / "a.py").write_text("a", encoding="utf-8")
+        (repo / "m.dat").write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100)
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert paths == ["a.py", "z.py"]
+
+    def test_binary_io_error_does_not_crash_pipeline(self, tmp_path):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        (repo / "good.py").write_text("print('hello')", encoding="utf-8")
+        (repo / "bad.dat").write_bytes(b"\x00" * 10)
+        # Mock check_binary_file to simulate an I/O error only for bad.dat
+        def check_binary_side_effect(path):
+            if "bad.dat" in path:
+                return False, "permission_error: permission denied"
+            return False, None
+
+        with patch(
+            "repo2readme.loaders.traversal.pipeline.check_binary_file",
+            side_effect=check_binary_side_effect,
+        ):
+            pipeline = TraversalPipeline(str(repo))
+            documents, ctx = pipeline.run()
+        # good.py should still be processed; bad.dat should be skipped with error
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "good.py"
+        assert any("permission_error" in e for e in ctx.errors)
+        skipped_reasons = {s[0]: s[1] for s in ctx.skipped}
+        assert skipped_reasons["bad.dat"] == "permission_error: permission denied"
+
+    def test_binary_check_stage_callable(self):
+        """The check_binary_file stage is importable and callable."""
+        assert callable(check_binary_file)
 

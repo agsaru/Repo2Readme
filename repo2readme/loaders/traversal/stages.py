@@ -271,6 +271,33 @@ def filter_file(
 
 
 # ---------------------------------------------------------------------------
+# Stage 2.5: Binary detection – skip unsupported content early
+# ---------------------------------------------------------------------------
+
+
+def check_binary_file(
+    absolute_path: str,
+) -> tuple[bool, Optional[str]]:
+    """
+    Check whether a file appears to contain binary content.
+
+    Returns ``(True, None)`` if the file is binary, ``(False, None)`` if the
+    file appears to be text, or ``(False, error_message)`` if an I/O error
+    occurred during inspection.
+
+    Binary detection is content-based (not extension-based) and inspects only
+    a bounded prefix of the file to avoid loading large files entirely into
+    memory.
+    """
+    from repo2readme.utils.binary import is_binary_content
+
+    try:
+        return is_binary_content(absolute_path), None
+    except OSError as error:
+        return False, f"permission_error: {error}"
+
+
+# ---------------------------------------------------------------------------
 # Stage 3: Metadata extraction
 # ---------------------------------------------------------------------------
 

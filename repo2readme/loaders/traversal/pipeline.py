@@ -23,6 +23,7 @@ from .stages import (
     TraversalProgressEvent,
     discover_files,
     filter_file,
+    check_binary_file,
     extract_file_metadata,
     detect_file_language,
     create_document,
@@ -38,10 +39,11 @@ class TraversalPipeline:
     ------
     1. discover  – walk the directory tree, collect file paths
     2. filter    – apply include/exclude/size/gitignore rules per file
-    3. load      – read file content (I/O bound, parallelised)
-    4. metadata  – extract file metadata
-    5. language  – detect programming language
-    6. document  – build final DocumentResult
+    3. binary    – detect binary/unsupported content (content-based)
+    4. load      – read file content (I/O bound, parallelised)
+    5. metadata  – extract file metadata
+    6. language  – detect programming language
+    7. document  – build final DocumentResult
 
     Thread safety
     -------------
@@ -171,7 +173,7 @@ class TraversalPipeline:
                 errors=self._errors,
             )
 
-        # Stages 3-6: Load content, extract metadata, detect language,
+        # Stages 4-7: Load content, extract metadata, detect language,
         # create document – parallelised per file.
         documents: list[Optional[DocumentResult]] = [None] * len(filtered)
         worker_count = self._resolve_worker_count(len(filtered))
@@ -182,7 +184,23 @@ class TraversalPipeline:
             Returns the skip reason when the file cannot be loaded, or
             ``None`` on success (the document is placed in ``documents``).
             """
-            # Stage 3: Load content (I/O bound)
+            # Stage 3: Binary detection – skip unsupported content before
+            # text decoding, metadata extraction, or language detection.
+            is_binary, error = check_binary_file(ff.absolute_path)
+            if error is not None:
+                with self._lock:
+                    self._errors.append(
+                        f"Error checking {ff.relative_path}: {error}"
+                    )
+                    self._skipped.append((ff.relative_path, error))
+                return error
+
+            if is_binary:
+                with self._lock:
+                    self._skipped.append((ff.relative_path, "binary_file"))
+                return "binary_file"
+
+            # Stage 4: Load content (I/O bound)
             content, error = load_file_content(ff.absolute_path)
             if error is not None:
                 with self._lock:
