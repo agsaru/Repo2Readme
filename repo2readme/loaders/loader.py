@@ -28,6 +28,10 @@ class LocalRepoLoader:
         respect_gitignore: bool = False,
         max_workers: int | None = None,
     ):
+        if max_file_size_kb is not None and max_file_size_kb < 0:
+            raise ValueError(
+                f"max_file_size_kb must be non-negative, got {max_file_size_kb}"
+            )
         self.folder_path = folder_path
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
@@ -99,6 +103,10 @@ class UrlRepoLoader:
         max_file_size_kb: int | None = 200,
         respect_gitignore: bool = False,
     ):
+        if max_file_size_kb is not None and max_file_size_kb < 0:
+            raise ValueError(
+                f"max_file_size_kb must be non-negative, got {max_file_size_kb}"
+            )
         self.clone_url = clone_url
         self.branch = branch
         self.include_patterns = include_patterns

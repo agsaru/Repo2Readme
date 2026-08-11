@@ -30,6 +30,7 @@ from repo2readme.loaders.traversal.stages import (
     ProgressEventType,
     TraversalProgressEvent,
 )
+from repo2readme.utils.filter import is_file_size_allowed as _real_is_file_size_allowed
 
 
 @pytest.fixture
@@ -278,6 +279,187 @@ class TestTraversalPipeline:
         paths = [d.metadata["relative_path"] for d in documents]
         assert "main.py" in paths
         assert "data.json" not in paths
+
+    def test_no_size_limit_preserves_existing_behavior(self, tmp_path):
+        repo = tmp_path / "unlimited_repo"
+        repo.mkdir()
+        (repo / "small.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "large.py").write_text("x" * 500_000, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=None)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 2
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert "small.py" in paths
+        assert "large.py" in paths
+        assert len(ctx.skipped) == 0
+
+    def test_file_below_limit_is_processed(self, tmp_path):
+        repo = tmp_path / "below_repo"
+        repo.mkdir()
+        (repo / "small.py").write_text("x" * 100, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "small.py"
+
+    def test_file_at_limit_is_processed(self, tmp_path):
+        repo = tmp_path / "at_limit_repo"
+        repo.mkdir()
+        # Exactly 200 KB = 204800 bytes
+        (repo / "exact.py").write_text("x" * 204800, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "exact.py"
+
+    def test_file_above_limit_is_skipped(self, tmp_path):
+        repo = tmp_path / "above_repo"
+        repo.mkdir()
+        (repo / "small.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "large.py").write_text("x" * 204801, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "small.py"
+        skipped_paths = [s[0] for s in ctx.skipped]
+        assert "large.py" in skipped_paths
+
+    def test_skip_reason_includes_size_info(self, tmp_path):
+        repo = tmp_path / "reason_repo"
+        repo.mkdir()
+        (repo / "large.py").write_text("x" * 300 * 1024, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 0
+        skipped_reasons = [s[1] for s in ctx.skipped]
+        assert any("exceeds maximum file size" in r for r in skipped_reasons)
+        assert any("307200 B" in r for r in skipped_reasons)
+        assert any("204800 B" in r for r in skipped_reasons)
+
+    @patch("repo2readme.loaders.traversal.pipeline.load_file_content")
+    def test_oversized_file_skipped_before_content_load(self, mock_load, tmp_path):
+        repo = tmp_path / "no_load_repo"
+        repo.mkdir()
+        (repo / "small.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "large.py").write_text("x" * 250_000, encoding="utf-8")
+        mock_load.return_value = ("content", None)
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "small.py"
+        loaded_paths = [call.args[0] for call in mock_load.call_args_list]
+        assert not any("large.py" in p for p in loaded_paths)
+
+    @patch("repo2readme.loaders.traversal.pipeline.detect_file_language")
+    def test_oversized_file_skipped_before_language_detection(
+        self, mock_detect, tmp_path
+    ):
+        repo = tmp_path / "no_lang_repo"
+        repo.mkdir()
+        (repo / "small.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "large.py").write_text("x" * 250_000, encoding="utf-8")
+        mock_detect.return_value = "python"
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        detected_paths = [
+            call.args[0].absolute_path for call in mock_detect.call_args_list
+        ]
+        assert not any("large.py" in p for p in detected_paths)
+
+    def test_mixed_repo_processes_small_and_skips_large(self, tmp_path):
+        repo = tmp_path / "mixed_repo"
+        repo.mkdir()
+        (repo / "a.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "b.py").write_text("x" * 500_000, encoding="utf-8")
+        (repo / "c.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "d.py").write_text("x" * 750_000, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 2
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert paths == ["a.py", "c.py"]
+        skipped_paths = [s[0] for s in ctx.skipped]
+        assert "b.py" in skipped_paths
+        assert "d.py" in skipped_paths
+
+    def test_multiple_oversized_files_handled(self, tmp_path):
+        repo = tmp_path / "multi_large"
+        repo.mkdir()
+        for name in ["a.py", "b.py", "c.py"]:
+            (repo / name).write_text("x" * 500_000, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 0
+        assert len(ctx.skipped) == 3
+
+    def test_document_ordering_remains_deterministic(self, tmp_path):
+        repo = tmp_path / "order_repo"
+        repo.mkdir()
+        for name in ["z.py", "y.py", "x.py"]:
+            (repo / name).write_text("x" * 100, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert paths == ["x.py", "y.py", "z.py"]
+
+    def test_existing_filtering_unchanged_with_size_limit(self, tmp_path):
+        repo = tmp_path / "filter_repo"
+        repo.mkdir()
+        (repo / "main.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "debug.log").write_text("log data", encoding="utf-8")
+        (repo / "large.py").write_text("x" * 500_000, encoding="utf-8")
+        (repo / ".gitignore").write_text("*.log\n", encoding="utf-8")
+        pipeline = TraversalPipeline(
+            str(repo), max_file_size_kb=200, respect_gitignore=True
+        )
+        documents, ctx = pipeline.run()
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert "main.py" in paths
+        assert "debug.log" not in paths
+        assert "large.py" not in paths
+
+    def test_negative_limit_raises_error(self, tmp_path):
+        repo = tmp_path / "neg_repo"
+        repo.mkdir()
+        (repo / "a.py").write_text("x", encoding="utf-8")
+        with pytest.raises(ValueError, match="non-negative"):
+            TraversalPipeline(str(repo), max_file_size_kb=-1)
+
+    def test_zero_limit_only_allows_empty_files(self, tmp_path):
+        repo = tmp_path / "zero_repo"
+        repo.mkdir()
+        (repo / "empty.py").write_text("", encoding="utf-8")
+        (repo / "small.py").write_text("x", encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=0)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "empty.py"
+        skipped_paths = [s[0] for s in ctx.skipped]
+        assert "small.py" in skipped_paths
+
+    @patch("repo2readme.utils.filter.is_file_size_allowed")
+    def test_stat_failure_does_not_crash_traversal(
+        self, mock_size_check, tmp_path
+    ):
+        repo = tmp_path / "stat_fail_repo"
+        repo.mkdir()
+        (repo / "good.py").write_text("x" * 100, encoding="utf-8")
+        (repo / "bad.py").write_text("x" * 100, encoding="utf-8")
+
+        def side_effect(path, **kwargs):
+            if "bad.py" in path:
+                return False, "cannot determine file size: simulated stat failure"
+            return _real_is_file_size_allowed(path, **kwargs)
+
+        mock_size_check.side_effect = side_effect
+
+        pipeline = TraversalPipeline(str(repo), max_file_size_kb=200)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert documents[0].metadata["relative_path"] == "good.py"
+        skipped_reasons = [s[1] for s in ctx.skipped]
+        assert any("cannot determine file size" in r for r in skipped_reasons)
 
 
 class TestEdgeCases:

@@ -1,3 +1,4 @@
+import pytest
 from repo2readme.utils.filter import is_file_size_allowed, github_file_filter
 from repo2readme.utils.tree import extract_tree
 import os
@@ -11,13 +12,27 @@ def test_is_file_size_allowed_small_and_large(tmp_path):
     large.write_text("x" * 2048, encoding="utf-8")
 
     # small file allowed under 1 KB
-    assert is_file_size_allowed("small.txt", root_path=str(tmp_path), max_file_size_kb=1)
+    allowed, reason = is_file_size_allowed(
+        "small.txt", root_path=str(tmp_path), max_file_size_kb=1
+    )
+    assert allowed is True
+    assert reason is None
 
     # large file not allowed under 1 KB
-    assert not is_file_size_allowed("large.bin", root_path=str(tmp_path), max_file_size_kb=1)
+    allowed, reason = is_file_size_allowed(
+        "large.bin", root_path=str(tmp_path), max_file_size_kb=1
+    )
+    assert allowed is False
+    assert reason is not None
+    assert "exceeds maximum file size" in reason
 
-    # non-existent files should be treated as allowed (stat raises OSError)
-    assert is_file_size_allowed("no-such-file.txt", root_path=str(tmp_path), max_file_size_kb=1)
+    # non-existent files should be reported as uncheckable (stat raises OSError)
+    allowed, reason = is_file_size_allowed(
+        "no-such-file.txt", root_path=str(tmp_path), max_file_size_kb=1
+    )
+    assert allowed is False
+    assert reason is not None
+    assert "cannot determine file size" in reason
 
 
 def test_extract_tree_and_file_list_respects_default_ignores(tmp_path):
@@ -48,6 +63,45 @@ def test_extract_tree_and_file_list_respects_default_ignores(tmp_path):
     assert "README.md" in file_basenames
     assert "main.py" in file_basenames
     assert "index.js" not in file_basenames
+
+
+def test_is_file_size_allowed_rejects_negative_limit(tmp_path):
+    small = tmp_path / "small.txt"
+    small.write_text("hello", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-negative"):
+        is_file_size_allowed("small.txt", root_path=str(tmp_path), max_file_size_kb=-1)
+
+
+def test_is_file_size_allowed_zero_limit(tmp_path):
+    empty = tmp_path / "empty.txt"
+    empty.write_text("", encoding="utf-8")
+
+    allowed, reason = is_file_size_allowed(
+        "empty.txt", root_path=str(tmp_path), max_file_size_kb=0
+    )
+    assert allowed is True
+    assert reason is None
+
+    small = tmp_path / "small.txt"
+    small.write_text("hello", encoding="utf-8")
+
+    allowed, reason = is_file_size_allowed(
+        "small.txt", root_path=str(tmp_path), max_file_size_kb=0
+    )
+    assert allowed is False
+    assert "exceeds maximum file size" in reason
+
+
+def test_is_file_size_allowed_none_limit_allows_all(tmp_path):
+    large = tmp_path / "large.bin"
+    large.write_text("x" * 10_000_000, encoding="utf-8")
+
+    allowed, reason = is_file_size_allowed(
+        "large.bin", root_path=str(tmp_path), max_file_size_kb=None
+    )
+    assert allowed is True
+    assert reason is None
 
 
 def test_nested_include_exclude_and_protected_large_file(tmp_path):

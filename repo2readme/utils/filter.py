@@ -178,16 +178,35 @@ def is_file_size_allowed(
     path: str,
     root_path: str | None = None,
     max_file_size_kb: int | None = 200,
-) -> bool:
+) -> tuple[bool, str | None]:
+    """
+    Check if a file is within the configured size limit.
+
+    Returns (allowed, reason). When allowed is True, reason is None.
+    When allowed is False, reason describes why the file was rejected.
+    """
     if max_file_size_kb is None:
-        return True
+        return True, None
+
+    if max_file_size_kb < 0:
+        raise ValueError(
+            f"max_file_size_kb must be non-negative, got {max_file_size_kb}"
+        )
 
     file_path = Path(root_path) / path if root_path else Path(path)
 
     try:
-        return file_path.stat().st_size <= max_file_size_kb * 1024
-    except OSError:
-        return True
+        size = file_path.stat().st_size
+    except OSError as exc:
+        return False, f"cannot determine file size: {exc}"
+
+    limit_bytes = max_file_size_kb * 1024
+    if size > limit_bytes:
+        return False, (
+            f"exceeds maximum file size ({size} B > {limit_bytes} B limit)"
+        )
+
+    return True, None
 
 
 def github_file_filter(
@@ -221,12 +240,13 @@ def github_file_filter(
             return False, "protected large file"
 
     if explicitly_included:
-        if not is_file_size_allowed(
+        allowed, reason = is_file_size_allowed(
             path,
             root_path=root_path,
             max_file_size_kb=max_file_size_kb,
-        ):
-            return False, "exceeds maximum file size"
+        )
+        if not allowed:
+            return False, reason or "exceeds maximum file size"
         return True, ""
 
     # Check default ignore rules against the match path (relative when
@@ -234,11 +254,12 @@ def github_file_filter(
     if is_default_ignored(match_path):
         return False, "ignored by default rules"
 
-    if not is_file_size_allowed(
+    allowed, reason = is_file_size_allowed(
         path,
         root_path=root_path,
         max_file_size_kb=max_file_size_kb,
-    ):
-        return False, "exceeds maximum file size"
+    )
+    if not allowed:
+        return False, reason or "exceeds maximum file size"
 
     return True, ""

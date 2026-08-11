@@ -1,9 +1,20 @@
 from repo2readme.utils.filter import github_file_filter
 
 
-def test_github_file_filter_allows_valid_files():
-    assert github_file_filter("repo2readme/cli/main.py")[0] is True
-    assert github_file_filter("src/app.tsx")[0] is True
+def test_github_file_filter_allows_valid_files(tmp_path):
+    (tmp_path / "repo2readme" / "cli").mkdir(parents=True)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "repo2readme" / "cli" / "main.py").write_text("x", encoding="utf-8")
+    (tmp_path / "src" / "app.tsx").write_text("x", encoding="utf-8")
+    assert (
+        github_file_filter(
+            "repo2readme/cli/main.py", root_path=str(tmp_path)
+        )[0]
+        is True
+    )
+    assert (
+        github_file_filter("src/app.tsx", root_path=str(tmp_path))[0] is True
+    )
 
 
 def test_github_file_filter_blocks_ignored_dirs():
@@ -17,11 +28,16 @@ def test_github_file_filter_blocks_ignored_extensions():
     assert github_file_filter("data.csv")[0] is False
 
 
-def test_include_pattern_allows_default_ignored_json_file():
-    assert github_file_filter(
-        "package.json",
-        include_patterns=["package.json"],
-    )[0] is True
+def test_include_pattern_allows_default_ignored_json_file(tmp_path):
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+    assert (
+        github_file_filter(
+            "package.json",
+            include_patterns=["package.json"],
+            root_path=str(tmp_path),
+        )[0]
+        is True
+    )
 
 
 def test_exclude_pattern_blocks_otherwise_allowed_file():
@@ -91,4 +107,4 @@ def test_skip_reason_file_size_limit(tmp_path):
         root_path=str(tmp_path),
         max_file_size_kb=200,
     )
-    assert reason == "exceeds maximum file size"
+    assert reason == "exceeds maximum file size (307200 B > 204800 B limit)"

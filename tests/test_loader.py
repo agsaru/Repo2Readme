@@ -105,7 +105,7 @@ def test_local_load_returns_skipped_info(mock_filter, tmp_path):
         elif path == "node_modules/package.json":
             return (False, "ignored by default rules")
         elif path == "large.py":
-            return (False, "exceeds maximum file size")
+            return (False, "exceeds maximum file size (2000 B > 1024 B limit)")
         elif path == "README.md":
             return (False, "excluded by pattern")
         return (True, "")
@@ -134,7 +134,7 @@ def test_local_load_returns_skipped_info(mock_filter, tmp_path):
     # node_modules/ is pruned, so package.json inside is never encountered
     assert len(skipped) == 3
     assert ("node_modules/", "ignored by default rules") in skipped
-    assert ("large.py", "exceeds maximum file size") in skipped
+    assert ("large.py", "exceeds maximum file size (2000 B > 1024 B limit)") in skipped
     assert ("README.md", "excluded by pattern") in skipped
 
 
@@ -220,7 +220,7 @@ def test_url_load_returns_skipped_info(mock_filter, mock_subprocess, mock_rmtree
         elif path == "node_modules/package.json":
             return (False, "ignored by default rules")
         elif path == "large.py":
-            return (False, "exceeds maximum file size")
+            return (False, "exceeds maximum file size (2000 B > 1024 B limit)")
         elif path == "README.md":
             return (False, "excluded by pattern")
         return (True, "")
@@ -252,7 +252,7 @@ def test_url_load_returns_skipped_info(mock_filter, mock_subprocess, mock_rmtree
     # node_modules/ is pruned, so package.json is never encountered
     assert len(skipped) == 3
     assert ("node_modules/", "ignored by default rules") in skipped
-    assert ("large.py", "exceeds maximum file size") in skipped
+    assert ("large.py", "exceeds maximum file size (2000 B > 1024 B limit)") in skipped
     assert ("README.md", "excluded by pattern") in skipped
 
 

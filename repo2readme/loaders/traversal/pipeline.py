@@ -69,6 +69,10 @@ class TraversalPipeline:
         max_workers: int | None = None,
         progress_callback: ProgressCallback | None = None,
     ):
+        if max_file_size_kb is not None and max_file_size_kb < 0:
+            raise ValueError(
+                f"max_file_size_kb must be non-negative, got {max_file_size_kb}"
+            )
         self.folder_path = folder_path
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
