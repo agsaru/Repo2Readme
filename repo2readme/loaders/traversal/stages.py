@@ -59,18 +59,40 @@ class DocumentResult:
     metadata: dict
 
 
+@dataclass(frozen=True)
+class RepositoryMetadata:
+    """
+    Aggregate repository statistics computed once during traversal.
+
+    These values (file count, directory count and total on-disk size) are
+    gathered during the initial discovery walk and cached on the
+    :class:`PipelineContext` so downstream stages/consumers can read them
+    instead of recomputing the same filesystem statistics.
+
+    The cache is scoped to a single traversal run: ``discover_files``
+    produces a fresh ``RepositoryMetadata`` on every invocation, so metadata
+    from a previous scan can never leak into another.
+    """
+
+    file_count: int
+    directory_count: int
+    total_size: int
+
+
 @dataclass
 class PipelineContext:
     """
     Shared context that flows through the pipeline.
 
-    Retains skip information for reporting and a reference to the
-    root path used during traversal.
+    Retains skip information for reporting, a reference to the root path
+    used during traversal, and the repository metadata computed once during
+    the discovery stage.
     """
 
     root_path: str
     skipped: list[tuple[str, str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    repository_metadata: Optional["RepositoryMetadata"] = None
 
 
 # ---------------------------------------------------------------------------
@@ -125,6 +147,20 @@ ProgressCallback = Callable[[TraversalProgressEvent], None]
 # ---------------------------------------------------------------------------
 
 
+def _get_file_size(path: str) -> int:
+    """
+    Return the on-disk size of a file in bytes.
+
+    Used while discovering files so repository-level size statistics can be
+    gathered without a second traversal. Returns 0 when the file cannot be
+    stat'd (e.g. a transient permission error).
+    """
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
 def discover_files(
     folder_path: str,
     include_patterns: Iterable[str] | None = None,
@@ -135,13 +171,23 @@ def discover_files(
     """
     Walk the directory tree, apply directory-level filtering, and collect
     file paths that pass.
+
+    While walking, aggregate repository metadata (file count, directory
+    count and total on-disk size) once and cache it on the returned
+    :class:`PipelineContext` so downstream stages do not walk or stat the
+    tree again for these statistics.
     """
     root_resolved = os.path.realpath(folder_path)
     visited_dirs: set[str] = {root_resolved}
     discovered: list[str] = []
     skipped: list[tuple[str, str]] = []
+    directory_count = 0
+    total_size = 0
 
     for current, dirs, files in os.walk(folder_path):
+        # Each yielded directory (including the root) is one directory we
+        # actually traverse after filtering, so it is part of the statistics.
+        directory_count += 1
         # --- Filter directories in-place (os.walk convention) ---
         new_dirs: list[str] = []
         dirs.sort(key=lambda d: (os.path.islink(os.path.join(current, d)), d))
@@ -211,10 +257,19 @@ def discover_files(
                 continue
 
             discovered.append(full_path)
+            total_size += _get_file_size(full_path)
 
     # Sort for deterministic ordering
     discovered.sort()
-    return discovered, PipelineContext(root_path=folder_path, skipped=skipped)
+
+    metadata = RepositoryMetadata(
+        file_count=len(discovered),
+        directory_count=directory_count,
+        total_size=total_size,
+    )
+    return discovered, PipelineContext(
+        root_path=folder_path, skipped=skipped, repository_metadata=metadata
+    )
 
 
 def _is_within_root(path: str, root: str) -> bool:

@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
+import repo2readme.loaders.traversal.stages as stages
 from repo2readme.loaders.traversal.pipeline import TraversalPipeline
 from repo2readme.loaders.traversal.stages import (
     discover_files,
@@ -889,3 +890,129 @@ class TestBinaryDetection:
         """The check_binary_file stage is importable and callable."""
         assert callable(check_binary_file)
 
+
+class TestRepositoryMetadata:
+    """Cached repository metadata computed during traversal (issue #78)."""
+
+    @staticmethod
+    def _expected_stats(root):
+        """Mirror the discovery-stage semantics used to build the cache."""
+        file_count = 0
+        directory_count = 0
+        total_size = 0
+        for current, dirs, files in os.walk(root):
+            directory_count += 1
+            for name in files:
+                full = os.path.join(current, name)
+                if os.path.isfile(full):
+                    file_count += 1
+                    total_size += os.path.getsize(full)
+        return file_count, directory_count, total_size
+
+    def test_metadata_created_during_discovery(self, sample_repo):
+        files, ctx = discover_files(sample_repo)
+        assert ctx.repository_metadata is not None
+        assert ctx.repository_metadata.file_count == len(files)
+
+    def test_pipeline_context_carries_metadata(self, sample_repo):
+        pipeline = TraversalPipeline(sample_repo)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 4
+        assert ctx.repository_metadata is not None
+
+    def test_metadata_values_match_repository(self, sample_repo):
+        _, ctx = discover_files(sample_repo)
+        exp_files, exp_dirs, exp_size = self._expected_stats(sample_repo)
+        assert ctx.repository_metadata.file_count == exp_files
+        assert ctx.repository_metadata.file_count == 5
+        assert ctx.repository_metadata.directory_count == exp_dirs
+        assert ctx.repository_metadata.directory_count == 3
+        assert ctx.repository_metadata.total_size == exp_size
+        assert ctx.repository_metadata.total_size > 0
+
+    def test_metadata_stats_computed_once_not_per_consumer(self, sample_repo, monkeypatch):
+        calls = {"count": 0}
+        real = stages._get_file_size
+
+        def counting(path):
+            calls["count"] += 1
+            return real(path)
+
+        monkeypatch.setattr(stages, "_get_file_size", counting)
+        _, ctx = discover_files(sample_repo)
+        # Size aggregation runs exactly once per discovered file, even though
+        # downstream consumers read the cached aggregate statistics.
+        assert calls["count"] == ctx.repository_metadata.file_count
+        # Reading the cached metadata triggers no further stat operations.
+        before = calls["count"]
+        assert ctx.repository_metadata.total_size > 0
+        assert calls["count"] == before
+
+    def test_full_pipeline_stats_computed_once(self, sample_repo, monkeypatch):
+        calls = {"count": 0}
+        real = stages._get_file_size
+
+        def counting(path):
+            calls["count"] += 1
+            return real(path)
+
+        monkeypatch.setattr(stages, "_get_file_size", counting)
+        pipeline = TraversalPipeline(sample_repo)
+        documents, ctx = pipeline.run()
+        # One size stat per discovered file during discovery; downstream file
+        # processing (documents) does not repeat the repository-size pass.
+        assert ctx.repository_metadata.file_count == 5
+        assert calls["count"] == ctx.repository_metadata.file_count
+
+    def test_fresh_traversal_gets_fresh_metadata(self, tmp_path):
+        repo = tmp_path / "fresh_meta"
+        repo.mkdir()
+        (repo / "a.py").write_text("x", encoding="utf-8")
+
+        pipeline1 = TraversalPipeline(str(repo))
+        _, ctx1 = pipeline1.run()
+        meta1 = ctx1.repository_metadata
+
+        (repo / "b.py").write_text("y", encoding="utf-8")
+        pipeline2 = TraversalPipeline(str(repo))
+        _, ctx2 = pipeline2.run()
+        meta2 = ctx2.repository_metadata
+
+        # A new scan must not reuse the previous scan's metadata object and
+        # must reflect the current repository contents.
+        assert meta1 is not meta2
+        assert meta1.file_count == 1
+        assert meta2.file_count == meta1.file_count + 1
+
+    def test_empty_repository_metadata(self, tmp_path):
+        empty = tmp_path / "empty_meta"
+        empty.mkdir()
+        pipeline = TraversalPipeline(str(empty))
+        documents, ctx = pipeline.run()
+        assert documents == []
+        assert ctx.repository_metadata is not None
+        assert ctx.repository_metadata.file_count == 0
+        assert ctx.repository_metadata.directory_count == 1
+        assert ctx.repository_metadata.total_size == 0
+
+    def test_nested_directories_metadata(self, nested_repo):
+        pipeline = TraversalPipeline(nested_repo)
+        documents, ctx = pipeline.run()
+        assert len(documents) == 1
+        assert ctx.repository_metadata.file_count == 1
+        assert ctx.repository_metadata.directory_count == 11
+        leaf_path = os.path.join(
+            nested_repo, *[f"level{i}" for i in range(10)], "leaf.py"
+        )
+        assert ctx.repository_metadata.total_size == os.path.getsize(leaf_path)
+
+    def test_document_ordering_unchanged_with_metadata(self, tmp_path):
+        repo = tmp_path / "order_meta"
+        repo.mkdir()
+        for name in ["z.py", "y.py", "x.py"]:
+            (repo / name).write_text("x" * 100, encoding="utf-8")
+        pipeline = TraversalPipeline(str(repo))
+        documents, ctx = pipeline.run()
+        paths = [d.metadata["relative_path"] for d in documents]
+        assert paths == ["x.py", "y.py", "z.py"]
+        assert ctx.repository_metadata.file_count == 3

@@ -98,7 +98,9 @@ class TraversalPipeline:
         -------
         (documents, context)
             documents – list of DocumentResult in deterministic order.
-            context   – PipelineContext with root_path, skipped, errors.
+            context   – PipelineContext with root_path, skipped, errors, and
+                        repository_metadata (cached repo statistics computed
+                        once during discovery).
 
         Progress
         --------
@@ -122,11 +124,17 @@ class TraversalPipeline:
             respect_gitignore=self.respect_gitignore,
         )
         self._skipped = ctx.skipped
+        # Repository metadata (file count, directory count, total size) was
+        # computed once during discovery. Reuse the cached values downstream
+        # instead of re-walking or re-statting the repository.
+        repo_metadata = ctx.repository_metadata
 
         # The total workload is now known — notify once so callers can set
         # up progress displays. All counters below are only ever mutated on
         # this (the caller's) thread, never on pool worker threads.
-        total_work = len(discovered)
+        total_work = (
+            repo_metadata.file_count if repo_metadata is not None else len(discovered)
+        )
         self._emit(
             ProgressEventType.FILES_DISCOVERED,
             completed=0,
@@ -138,6 +146,7 @@ class TraversalPipeline:
                 root_path=self.folder_path,
                 skipped=self._skipped,
                 errors=self._errors,
+                repository_metadata=repo_metadata,
             )
 
         # Stage 2: Filter files (can be parallelised, but filtering is cheap;
@@ -175,6 +184,7 @@ class TraversalPipeline:
                 root_path=self.folder_path,
                 skipped=self._skipped,
                 errors=self._errors,
+                repository_metadata=repo_metadata,
             )
 
         # Stages 4-7: Load content, extract metadata, detect language,
@@ -287,6 +297,7 @@ class TraversalPipeline:
             root_path=self.folder_path,
             skipped=self._skipped,
             errors=self._errors,
+            repository_metadata=repo_metadata,
         )
 
     def _emit(
