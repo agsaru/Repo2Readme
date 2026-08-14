@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 
 from repo2readme.utils.detect_language import detect_lang
+from repo2readme.utils.paths import display_path, to_posix
 from repo2readme.summarize.summary import summarize_file
 from repo2readme.cache import SummaryCache
 from repo2readme.services.reporting import SummaryFailure
@@ -37,7 +38,12 @@ def generate_all_summaries(
     
     def process_document(doc):
         meta = doc["metadata"]
-        file_path = meta["file_path"]
+        # The repository-relative path is what goes into the prompt, the cache
+        # key and the failure report. The absolute path is a property of this
+        # machine and this run: putting it in the prompt leaks it into the
+        # generated README, and using it as a cache key means the cache misses
+        # as soon as the checkout moves.
+        file_path = display_path(meta) or meta.get("file_path", "")
         try:
             lang = detect_lang(meta.get("file_type", "text"), doc["content"])
             cached = summary_cache.get(file_path, doc["content"], lang)
@@ -85,15 +91,24 @@ def generate_all_summaries(
 def build_directory_tree(file_summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Builds a tree structure of the repository based on file paths.
+
+    Paths are normalized to repository-relative POSIX form first. An absolute
+    path here would produce one directory node per filesystem component - for a
+    ``--url`` run the roll-up started at ``/``, ``private``, ``var``, ``folders``
+    and so on before reaching anything belonging to the repository, and any
+    directory that did need summarizing was described to the model by its
+    absolute path.
     """
     tree = {"type": "dir", "path": ".", "files": [], "children": {}}
     for summary in file_summaries:
         if isinstance(summary, str):
             continue
-        path = summary.get("file_path", "")
+        path = to_posix(summary.get("file_path", "")).lstrip("/")
         if not path:
             continue
-        parts = path.split("/")
+        parts = [part for part in path.split("/") if part and part != "."]
+        if not parts:
+            continue
         current = tree
         for i, part in enumerate(parts):
             if i == len(parts) - 1:

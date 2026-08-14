@@ -12,6 +12,7 @@ from collections import Counter
 
 from repo2readme import __version__
 from repo2readme.utils.logging_config import logging_options
+from repo2readme.utils.paths import display_path
 from repo2readme.utils.tree import generate_tree
 from repo2readme.cache import SummaryCache
 from repo2readme.loaders.repo_loader import RepoLoader
@@ -254,8 +255,10 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 task_id=rollup_task
             )
 
-        # Remove cache entries for files that no longer exist
-        current_files = {doc["metadata"]["file_path"] for doc in documents}
+        # Remove cache entries for files that no longer exist. Cache keys are
+        # repository-relative, so the comparison has to be too - and entries
+        # left over from when keys were absolute simply fall out here.
+        current_files = {display_path(doc["metadata"]) for doc in documents}
         stale_entries = summary_cache.get_deleted_files(current_files)
         if stale_entries:
             stale_paths = [e["file_path"] for e in stale_entries]
