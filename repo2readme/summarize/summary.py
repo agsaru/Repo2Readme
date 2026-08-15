@@ -5,6 +5,7 @@ import logging
 import os
 from langchain_core.output_parsers import JsonOutputParser
 from repo2readme.llm.factory import create_llm
+from repo2readme.utils.paths import to_posix
 from repo2readme.utils.retry import call_with_retry
 
 
@@ -101,16 +102,25 @@ def summarize_file(
     model_name=None,
     base_url=None,
 ):
+    # The path is interpolated into the prompt four times and the model is asked
+    # to echo it back. Normalize it once, and overwrite whatever comes back with
+    # the canonical value, so the directory roll-up and the README do not depend
+    # on the model reproducing a path correctly.
+    canonical_path = to_posix(file_path)
+
     try:
         chain = create_summarizer(file_path, language, content, provider, model_name, base_url,)
-        return call_with_retry(
+        result = call_with_retry(
             lambda: chain.invoke({
-                "file_path": file_path.replace("\\", "/"),
+                "file_path": canonical_path,
                 "language": language,
                 "content": content
             }),
-            description=f"summary for {file_path}",
+            description=f"summary for {canonical_path}",
         )
+        if isinstance(result, dict):
+            result["file_path"] = canonical_path
+        return result
     except Exception as e:
-        logger.warning("Summary error for %s: %s", file_path, e)
-        return {"file_path": file_path, "error": str(e)}
+        logger.warning("Summary error for %s: %s", canonical_path, e)
+        return {"file_path": canonical_path, "error": str(e)}

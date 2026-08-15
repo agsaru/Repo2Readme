@@ -120,6 +120,26 @@ section is never mistaken for the document's own headings, links or images.
 
 Run with `-v` to see these warnings if your console is configured to hide them.
 
+## Paths in summaries and the cache
+
+Everything the model sees, and every cache key, uses the path **relative to the
+repository** — `src/api/routes.py`, never `/Users/you/work/app/src/api/routes.py`
+or the temporary clone directory a `--url` run uses.
+
+That matters for three reasons:
+
+- The summarization prompt interpolates the path and asks the model to echo it
+  back, so an absolute path ends up quoted in the generated README.
+- The directory roll-up splits the path to build its tree; an absolute path
+  produced one directory node per filesystem component before reaching anything
+  belonging to the repository.
+- Cache entries keyed on an absolute path miss as soon as the checkout moves,
+  even though the content is unchanged.
+
+The path recorded in each summary is set by `repo2readme`, not taken from the
+model's answer, so a model that echoes the path back incorrectly cannot corrupt
+the roll-up.
+
 ## Summary Cache
 
 `repo2readme` maintains a local cache of file summaries to avoid redundant API calls.

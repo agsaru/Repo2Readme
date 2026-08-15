@@ -18,6 +18,7 @@ from repo2readme.loaders.repo_loader import RepoLoader
 from repo2readme.summarize.summary import get_prompt_template_hash
 from repo2readme.dependency_graph import build_dependency_graph
 from repo2readme.providers import PROVIDERS, provider_choices_help
+from repo2readme.utils.paths import display_path
 
 # Import new services
 from repo2readme.services.environment import setup_api_keys
@@ -258,8 +259,10 @@ def run(url, local, output, force, include_patterns, exclude_patterns, max_file_
                 task_id=rollup_task
             )
 
-        # Remove cache entries for files that no longer exist
-        current_files = {doc["metadata"]["file_path"] for doc in documents}
+        # Remove cache entries for files that no longer exist. Cache keys are
+        # repository-relative, so the comparison has to be too - and entries
+        # left over from when keys were absolute simply fall out here.
+        current_files = {display_path(doc["metadata"]) for doc in documents}
         stale_entries = summary_cache.get_deleted_files(current_files)
         if stale_entries:
             stale_paths = [e["file_path"] for e in stale_entries]
