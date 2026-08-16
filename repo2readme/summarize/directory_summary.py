@@ -33,7 +33,7 @@ Return ONLY JSON.
 
 def summarize_directory(dir_path, contents_summaries, provider=None, model_name=None, base_url=None):
     model = create_llm(
-        provider=provider or "groq",
+        provider=provider,
         model=model_name,
         base_url=base_url,
     )
