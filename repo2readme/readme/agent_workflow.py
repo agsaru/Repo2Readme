@@ -18,6 +18,13 @@ class ReadmeState(TypedDict):
     provider: str | None
     model: str | None
     base_url: str | None
+    # The reviewer runs on the same provider and model as the generator unless
+    # it was explicitly pointed elsewhere. These fields carry that override;
+    # nothing here is inferred from --model, which is what used to hand a model
+    # name to a vendor it did not belong to.
+    reviewer_provider: str | None
+    reviewer_model: str | None
+    reviewer_base_url: str | None
     dependency_overview: str
 
 
@@ -45,9 +52,9 @@ def readme_reviewer_node(state: ReadmeState):
     latest_readme = state['readme'][-1]
     review = readme_reviewer(
         latest_readme,
-        provider=state["provider"],
-        model_name=state["model"],
-        base_url=state["base_url"],
+        provider=state.get("reviewer_provider") or state["provider"],
+        model_name=state.get("reviewer_model") or state["model"],
+        base_url=state.get("reviewer_base_url") or state["base_url"],
     )
     best_score = state['best_score']
     best_readme = state['best_readme']

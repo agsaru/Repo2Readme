@@ -4,6 +4,7 @@ import os
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from repo2readme.llm.settings import DEFAULT_PROVIDER, LLMSettings
 from repo2readme.providers import get_provider
 
 
@@ -14,8 +15,28 @@ def _missing_package(package: str, provider_label: str) -> ImportError:
     )
 
 
+def create_llm_from_settings(
+    settings: LLMSettings,
+    api_key: str | None = None,
+    **kwargs,
+) -> BaseChatModel:
+    """Build a chat model from already-resolved :class:`LLMSettings`.
+
+    This is what every call site should use. The provider, model and base URL
+    have been decided once for the whole run, so nothing here can apply a
+    default that disagrees with what another part of the run decided.
+    """
+    return create_llm(
+        provider=settings.provider,
+        model=settings.model,
+        api_key=api_key,
+        base_url=settings.base_url,
+        **kwargs,
+    )
+
+
 def create_llm(
-    provider: str,
+    provider: str | None = None,
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
@@ -26,8 +47,11 @@ def create_llm(
 
     Parameters
     ----------
-    provider : str
+    provider : str | None
         LLM provider name or alias, as listed in ``repo2readme.providers``.
+        ``None`` means the project default (``groq``). Applying that fallback
+        was left to each caller before, and they did not agree on it: the
+        reviewer defaulted to Google while everything else defaulted to Groq.
     model : str | None
         Model name. Falls back to the provider's default model.
     api_key : str | None
@@ -43,7 +67,7 @@ def create_llm(
         supported provider.
     """
 
-    spec = get_provider(provider)
+    spec = get_provider(provider or DEFAULT_PROVIDER)
     name = spec.name
     model = model or spec.default_model
     base_url = base_url or spec.default_base_url
