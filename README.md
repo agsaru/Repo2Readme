@@ -198,3 +198,6 @@ Contributions are welcome! Whether you're fixing bugs, improving documentation, 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 Copyright (c) 2025 Sarowar Jahan Biswas
+## Security
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
