@@ -467,5 +467,136 @@ def reset():
         rprint("[yellow]No API key file found to reset.[/yellow]")
 
 
+@main.command()
+@click.option("--url", "-u", help="Git repository URL.")
+@click.option("--local", "-l", help="Local repo path")
+@click.option("--include", "include_patterns", multiple=True, help="Glob pattern to include.")
+@click.option("--exclude", "exclude_patterns", multiple=True, help="Glob pattern to exclude.")
+@click.option("--max-file-size-kb", default=200, show_default=True, type=int)
+@click.option("--respect-gitignore", is_flag=True, default=False)
+@click.option("--max-workers", default=None, type=int, callback=validate_max_workers_option)
+@click.option("--branch", "-b", default="main", show_default=True)
+@click.option("--top", default=0, type=int, help="Show only top N languages (0 = all).")
+@click.option("--sort", type=click.Choice(["lines", "files", "bytes"]), default="lines",
+              show_default=True, help="Sort languages by this metric.")
+@click.option("--files", "show_files", is_flag=True, help="Show per-file listings under each language.")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", show_default=True)
+def languages(url, local, include_patterns, exclude_patterns, max_file_size_kb,
+              respect_gitignore, max_workers, branch, top, sort, show_files, output_format):
+    """Detailed language breakdown for a repository.
+
+    No API keys required — pure static analysis.
+    """
+    import json as json_mod
+    from repo2readme.services.languages import (
+        LanguageAnalysis,
+        analyze_languages,
+        distribution_bar,
+        format_byte_size,
+        format_percentage,
+    )
+
+    if not url and not local:
+        rprint("[red]Provide either --url or --local[/red]")
+        return
+
+    source = url if url else local
+
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Loading repository...", total=1)
+        try:
+            loader = RepoLoader(
+                source, include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size_kb=max_file_size_kb,
+                respect_gitignore=respect_gitignore,
+                max_workers=max_workers, branch=branch,
+            )
+            files, root_path, loader_obj = loader.load()
+        except Exception as e:
+            rprint(f"[red]Failed to load repository: {e}[/red]")
+            return
+        progress.update(task, advance=1)
+
+    documents = [{"content": f.page_content, "metadata": f.metadata} for f in files]
+    analysis = analyze_languages(documents)
+
+    if output_format == "json":
+        data = {
+            "total_files": analysis.total_files,
+            "total_lines": analysis.total_lines,
+            "total_bytes": analysis.total_bytes,
+            "languages": {},
+        }
+        for lb in analysis.sorted_by_lines():
+            data["languages"][lb.name] = {
+                "file_count": lb.file_count,
+                "total_lines": lb.total_lines,
+                "total_bytes": lb.total_bytes,
+                "avg_lines_per_file": round(lb.avg_lines_per_file, 1),
+                "percentage": round(lb.total_lines / max(1, analysis.total_lines) * 100, 1),
+                "files": [
+                    {"path": f.relative_path, "lines": f.line_count, "bytes": f.size_bytes}
+                    for f in sorted(lb.files, key=lambda x: x.line_count, reverse=True)
+                ],
+            }
+        rprint(json_mod.dumps(data, indent=2))
+        if hasattr(loader_obj, "cleanup"):
+            loader_obj.cleanup()
+        return
+
+    # Table output
+    from rich.panel import Panel
+    from rich.table import Table
+
+    sort_key = {"lines": lambda lb: lb.total_lines, "files": lambda lb: lb.file_count,
+                "bytes": lambda lb: lb.total_bytes}[sort]
+    sorted_langs = sorted(analysis.languages.values(), key=sort_key, reverse=True)
+    if top > 0:
+        sorted_langs = sorted_langs[:top]
+
+    rprint(Panel(
+        f"{analysis.total_files} files, {analysis.total_lines:,} lines, {format_byte_size(analysis.total_bytes)}",
+        title="Language Analysis",
+        border_style="cyan",
+    ))
+
+    table = Table(border_style="blue")
+    table.add_column("Language", style="bold")
+    table.add_column("Files", justify="right")
+    table.add_column("Lines", justify="right")
+    table.add_column("% Lines", justify="right")
+    table.add_column("Size", justify="right")
+    table.add_column("Avg Lines/File", justify="right")
+    table.add_column("Distribution")
+
+    for lb in sorted_langs:
+        table.add_row(
+            lb.name,
+            str(lb.file_count),
+            f"{lb.total_lines:,}",
+            format_percentage(lb.total_lines, analysis.total_lines),
+            format_byte_size(lb.total_bytes),
+            f"{lb.avg_lines_per_file:.0f}",
+            distribution_bar(lb, analysis.total_lines),
+        )
+    rprint(table)
+
+    if show_files:
+        for lb in sorted_langs:
+            if not lb.files:
+                continue
+            rprint(f"\n[bold]{lb.name}[/bold] ({lb.file_count} files)")
+            for fi in sorted(lb.files, key=lambda x: x.line_count, reverse=True):
+                display = fi.relative_path
+                if len(display) > 55:
+                    display = "..." + display[-52:]
+                rprint(f"  {display:55s} {fi.line_count:>6} lines  {format_byte_size(fi.size_bytes):>8}")
+
+    if hasattr(loader_obj, "cleanup"):
+        loader_obj.cleanup()
+
+
 if __name__ == "__main__":
     main()
