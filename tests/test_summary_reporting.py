@@ -172,7 +172,7 @@ def _patch_pipeline(monkeypatch, summaries, errors=None, readme="# Generated"):
     """Patch the CLI so a run completes without touching any provider."""
     captured = {}
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         return None
 
     def fake_generate_all_summaries(documents, summary_cache, provider, model,
@@ -184,7 +184,7 @@ def _patch_pipeline(monkeypatch, summaries, errors=None, readme="# Generated"):
         captured["rollup_input"] = file_summaries
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         captured["readme_input"] = summaries
         return readme
 

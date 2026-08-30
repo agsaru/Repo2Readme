@@ -10,13 +10,13 @@ def generate_readme(
     tree_structure: str,
     feedback: List[str],
     latest_readme: str,
-    provider: str,
-    model_name: str,
-    base_url: str,
+    provider: str | None,
+    model_name: str | None,
+    base_url: str | None,
     dependency_overview: str = "",
 ):
     model = create_llm(
-        provider=provider or "groq",
+        provider=provider,
         model=model_name,
         base_url=base_url,
     )

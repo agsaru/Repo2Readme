@@ -1,13 +1,41 @@
 # Configuration
 
-By default `repo2readme` uses two LLM providers, so it needs API keys for both:
+`repo2readme` uses **one** provider for the whole run. With no flags that is
+Groq, so one key is enough:
 
 | Variable | Used for |
 |---|---|
-| `GROQ_API_KEY` | File summarization (Groq's `openai/gpt-oss-120b`) |
-| `GOOGLE_API_KEY` | README generation & review (Gemini `2.5-flash`) |
+| `GROQ_API_KEY` | File summarization, directory roll-ups, README generation and review |
 
-If you pass `--provider`, only that provider's key is needed.
+Only the providers a run actually calls are asked for, so `--provider anthropic`
+needs `ANTHROPIC_API_KEY` and nothing else.
+
+> Earlier versions summarized with Groq and reviewed with Google, so a run
+> without `--provider` needed two keys from two vendors — and `--model` was
+> handed to both of them, which meant `--model <a Groq model>` summarized fine
+> and then died in review with a Google "model not found". The provider, model
+> and base URL are now resolved once, before the repository is loaded.
+
+## Reviewing with a different provider
+
+The generated README is scored by a reviewer step, which by default uses the
+same provider and model as everything else. To get a second opinion from
+another vendor, say so explicitly:
+
+```bash
+repo2readme run --local . --provider groq --reviewer-provider google
+```
+
+| Option | Default |
+|---|---|
+| `--reviewer-provider` | `--provider` |
+| `--reviewer-model` | `--model`, or the reviewer provider's own default model when `--reviewer-provider` names a different vendor |
+| `--reviewer-base-url` | `--base-url` |
+
+A model name belongs to the provider it was given for, so when the reviewer
+runs on a *different* vendor it uses that vendor's default model rather than
+inheriting `--model`. Name `--reviewer-model` to choose it yourself. Both are
+printed before the work starts whenever they differ.
 
 ## Supported providers
 
@@ -267,6 +295,13 @@ The cache is automatically invalidated when any of the following change:
 - **Base URL** (`--base-url`)
 - **Prompt template** (code change to the summarization prompt)
 - **Cache schema version** (internal format change)
+
+These are the *resolved* values, not the flags as typed. `--provider groq`,
+`--provider GROQ` and no flags at all are the same run, so they share a cache;
+hashing the raw flags meant they invalidated each other's entries. Aliases
+(`--provider gemini` and `--provider google`) collapse to the same key too.
+`--reviewer-*` does not affect the cache, since nothing the reviewer does is
+cached.
 
 When invalidation occurs, all existing cache entries are discarded and summaries are regenerated on the next run.
 

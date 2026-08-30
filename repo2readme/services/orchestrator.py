@@ -1,5 +1,6 @@
 import logging
 
+from repo2readme.llm.settings import LLMSettings, resolve_settings
 from repo2readme.readme.agent_workflow import build_workflow
 from repo2readme.readme.postprocess import postprocess_readme
 
@@ -18,12 +19,17 @@ def run_pipeline(
     summaries: list,
     tree: str,
     dependency_overview: str,
-    provider: str | None,
-    model: str | None,
-    base_url: str | None
+    settings: LLMSettings | None = None,
+    reviewer_settings: LLMSettings | None = None,
 ) -> str:
     """
     Invokes the LangGraph workflow to generate the README and returns the result.
+
+    ``settings`` is the provider, model and base URL the run already resolved;
+    the generator and the reviewer both use it unless ``reviewer_settings``
+    says otherwise. Taking resolved settings - rather than the raw CLI strings
+    this used to take - is what stops the two steps from applying different
+    defaults and calling two different vendors with the same ``--model``.
 
     The model's answer is normalized (wrapping code fence removed, trailing
     whitespace and blank line runs cleaned up) before being returned, and any
@@ -38,6 +44,15 @@ def run_pipeline(
         returned like any other, and the CLI wrote it straight over the user's
         file while reporting success.
     """
+    settings = settings or resolve_settings()
+    reviewer_settings = reviewer_settings or settings
+
+    logger.debug(
+        "Generating README with %s, reviewing with %s",
+        settings.describe(),
+        reviewer_settings.describe(),
+    )
+
     workflow = build_workflow()
 
     initial_state = {
@@ -47,9 +62,12 @@ def run_pipeline(
         "max_iterations": 3,
         'best_score': 0.0,
         "best_readme": "",
-        "provider": provider,
-        "model": model,
-        "base_url": base_url,
+        "provider": settings.provider,
+        "model": settings.model,
+        "base_url": settings.base_url,
+        "reviewer_provider": reviewer_settings.provider,
+        "reviewer_model": reviewer_settings.model,
+        "reviewer_base_url": reviewer_settings.base_url,
         "dependency_overview": dependency_overview,
     }
 

@@ -10,7 +10,7 @@ def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path
     output_file = tmp_path / "README.md"
     output_file.write_text("existing content", encoding="utf-8")
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         pass
 
     class FakeRepoLoader:
@@ -26,7 +26,7 @@ def test_output_file_is_not_overwritten_when_user_declines(monkeypatch, tmp_path
     def fake_generate_hierarchical_summaries(file_summaries, provider, model, base_url, progress, task_id):
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         return "new generated content"
 
     monkeypatch.setattr(cli_main, "setup_api_keys", fake_setup_api_keys)
@@ -51,7 +51,7 @@ def test_output_file_is_overwritten_when_user_confirms(monkeypatch, tmp_path):
     output_file = tmp_path / "README.md"
     output_file.write_text("existing content", encoding="utf-8")
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         pass
 
     class FakeRepoLoader:
@@ -67,7 +67,7 @@ def test_output_file_is_overwritten_when_user_confirms(monkeypatch, tmp_path):
     def fake_generate_hierarchical_summaries(file_summaries, provider, model, base_url, progress, task_id):
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         return "new generated content"
 
     monkeypatch.setattr(cli_main, "setup_api_keys", fake_setup_api_keys)
@@ -92,7 +92,7 @@ def test_output_file_is_overwritten_with_force(monkeypatch, tmp_path):
     output_file = tmp_path / "README.md"
     output_file.write_text("existing content", encoding="utf-8")
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         pass
 
     class FakeRepoLoader:
@@ -108,7 +108,7 @@ def test_output_file_is_overwritten_with_force(monkeypatch, tmp_path):
     def fake_generate_hierarchical_summaries(file_summaries, provider, model, base_url, progress, task_id):
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         return "new generated content"
 
     monkeypatch.setattr(cli_main, "setup_api_keys", fake_setup_api_keys)

@@ -34,13 +34,15 @@ BETTER_DRAFT = "# Project\n\nA better README, with installation notes.\n"
 
 
 def _pipeline():
+    # The provider, model and base URL are resolved once by the caller and
+    # handed down as settings; passing none leaves run_pipeline to resolve the
+    # defaults, which is what these tests want.
     return run_pipeline(
         summaries=["a summary"],
         tree="repo/",
         dependency_overview="",
-        provider=None,
-        model=None,
-        base_url=None,
+        settings=None,
+        reviewer_settings=None,
     )
 
 
@@ -304,7 +306,9 @@ class TestCliDoesNotWriteAnEmptyReadme:
                 ReadmeGenerationError("The model returned no README content")
             ),
         )
-        monkeypatch.setattr(cli_main, "setup_api_keys", lambda _provider: None)
+        # Takes the resolved generator and reviewer settings, not a
+        # provider name.
+        monkeypatch.setattr(cli_main, "setup_api_keys", lambda *_settings: None)
         monkeypatch.setattr(
             cli_main, "generate_all_summaries", lambda **_kwargs: ([{"a": 1}], [])
         )

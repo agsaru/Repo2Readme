@@ -16,7 +16,7 @@ def test_dry_run_mode(monkeypatch, tmp_path):
 
     # In dry-run, we should NOT ask for API keys or run summarize/workflow.
     # We will patch them just in case they are called (to make the test fail if they are called).
-    def error_setup_api_keys(provider):
+    def error_setup_api_keys(*settings):
         raise Exception("API keys should not be requested in dry-run mode")
 
     monkeypatch.setattr(cli_main, "setup_api_keys", error_setup_api_keys)
@@ -109,7 +109,7 @@ def test_normal_run_user_declines(monkeypatch, tmp_path):
     file1 = tmp_path / "main.py"
     file1.write_text("print('hello')", encoding="utf-8")
 
-    def error_setup_api_keys(provider):
+    def error_setup_api_keys(*settings):
         raise Exception("API keys should not be requested if user declines")
 
     monkeypatch.setattr(cli_main, "setup_api_keys", error_setup_api_keys)
@@ -136,7 +136,7 @@ def test_normal_run_user_confirms(monkeypatch, tmp_path):
     summarize_called = False
     workflow_called = False
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         nonlocal api_keys_called
         api_keys_called = True
 
@@ -148,7 +148,7 @@ def test_normal_run_user_confirms(monkeypatch, tmp_path):
     def fake_generate_hierarchical_summaries(file_summaries, provider, model, base_url, progress, task_id):
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         nonlocal workflow_called
         workflow_called = True
         return "fake readme contents"
@@ -186,7 +186,7 @@ def test_normal_run_force_bypasses_confirmation(monkeypatch, tmp_path):
     summarize_called = False
     workflow_called = False
 
-    def fake_setup_api_keys(provider):
+    def fake_setup_api_keys(*settings):
         nonlocal api_keys_called
         api_keys_called = True
 
@@ -198,7 +198,7 @@ def test_normal_run_force_bypasses_confirmation(monkeypatch, tmp_path):
     def fake_generate_hierarchical_summaries(file_summaries, provider, model, base_url, progress, task_id):
         return file_summaries
 
-    def fake_run_pipeline(summaries, tree, dependency_overview, provider, model, base_url):
+    def fake_run_pipeline(summaries, tree, dependency_overview, settings=None, reviewer_settings=None):
         nonlocal workflow_called
         workflow_called = True
         return "fake readme contents"

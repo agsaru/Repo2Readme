@@ -24,6 +24,11 @@ from repo2readme.cache import SummaryCache
 from repo2readme.loaders.repo_loader import RepoLoader
 from repo2readme.summarize.summary import get_prompt_template_hash
 from repo2readme.dependency_graph import build_dependency_graph
+from repo2readme.llm.settings import (
+    UnknownProviderError,
+    resolve_reviewer_settings,
+    resolve_settings,
+)
 from repo2readme.providers import PROVIDERS, provider_choices_help
 
 # Import new services
@@ -140,13 +145,31 @@ def main():
     help="Base URL for OpenAI-compatible providers",
 )
 @click.option(
+    "--reviewer-provider",
+    default=None,
+    help=(
+        "LLM provider for the README review step. Defaults to --provider. "
+        "Only set this to review with a different vendor on purpose."
+    ),
+)
+@click.option(
+    "--reviewer-model",
+    default=None,
+    help="Model for the README review step. Defaults to --model.",
+)
+@click.option(
+    "--reviewer-base-url",
+    default=None,
+    help="Base URL for the README review step. Defaults to --base-url.",
+)
+@click.option(
     "--branch",
     "-b",
     default="main",
     show_default=True,
     help="Branch to clone when using --url.",
 )
-def run(url, local, output, force, backup, create_dirs, include_patterns, exclude_patterns, max_file_size_kb, dry_run, strict, respect_gitignore, max_workers, provider, model, base_url, branch):
+def run(url, local, output, force, backup, create_dirs, include_patterns, exclude_patterns, max_file_size_kb, dry_run, strict, respect_gitignore, max_workers, provider, model, base_url, reviewer_provider, reviewer_model, reviewer_base_url, branch):
     """ Use --url for GitHub repo url and --local for local repo
     """
     if not url and not local:
@@ -169,13 +192,24 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         if output_target.created_parent:
             rprint(f"[green]Created {output_target.path.parent}[/green]")
 
+    # Resolve the provider, model and base URL once, before anything expensive
+    # happens. A typo in --provider used to survive the clone, the traversal
+    # and the API key prompt and only then raise.
+    try:
+        settings = resolve_settings(provider, model, base_url)
+        reviewer_settings = resolve_reviewer_settings(
+            settings, reviewer_provider, reviewer_model, reviewer_base_url
+        )
+    except UnknownProviderError as e:
+        rprint(f"[red]{e}[/red]")
+        raise SystemExit(2) from e
+
     # Initialize file summary cache
     cache_dir = os.path.join(os.getcwd(), ".repo2readme", "cache")
-    summarization_config = {
-        "provider": provider,
-        "model": model,
-        "base_url": base_url,
-    }
+    # Keyed on the resolved settings rather than on the raw flags, so
+    # `--provider groq` and no flags at all - the same run - share a cache
+    # instead of invalidating each other.
+    summarization_config = settings.as_cache_config()
     # autosave=False batches the writes: the whole cache file has to be
     # rewritten for any change, so saving once per summarized file made a run
     # cost one full serialization per file. The run flushes once at the end,
@@ -255,6 +289,9 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         rprint(f"Files selected     : {total_documents}")
         rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
         rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+        rprint(f"Model              : {settings.describe()}")
+        if reviewer_settings != settings:
+            rprint(f"Reviewer           : {reviewer_settings.describe()}")
         rprint("\n[green]Dry run complete.[/green]")
         rprint("[yellow]No API requests were made.[/yellow]")
         if hasattr(loader_obj, "cleanup"):
@@ -266,6 +303,9 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
     rprint(f"Files to summarize : {total_documents}")
     rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
     rprint(f"Request size       : ~{format_size(total_size_bytes)}")
+    rprint(f"Model              : {settings.describe()}")
+    if reviewer_settings != settings:
+        rprint(f"Reviewer           : {reviewer_settings.describe()}")
 
     try:
         if not force:
@@ -275,7 +315,9 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 return
 
         try:
-            setup_api_keys(provider)
+            # Only the providers this run will actually call, deduplicated:
+            # both keys used to be demanded whenever --provider was omitted.
+            setup_api_keys(settings, reviewer_settings)
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
             return
@@ -285,9 +327,9 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             summaries, errors = generate_all_summaries(
                 documents=documents,
                 summary_cache=summary_cache,
-                provider=provider,
-                model=model,
-                base_url=base_url,
+                provider=settings.provider,
+                model=settings.model,
+                base_url=settings.base_url,
                 max_workers=max_workers,
                 progress=progress,
                 task_id=task
@@ -310,9 +352,9 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             rollup_task = progress.add_task("[cyan]Generating directory summaries...[/cyan]", total=1)
             hierarchical_summaries = generate_hierarchical_summaries(
                 file_summaries=successful_summaries,
-                provider=provider,
-                model=model,
-                base_url=base_url,
+                provider=settings.provider,
+                model=settings.model,
+                base_url=settings.base_url,
                 progress=progress,
                 task_id=rollup_task
             )
@@ -331,9 +373,8 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 summaries=hierarchical_summaries,
                 tree=tree,
                 dependency_overview=dependency_overview,
-                provider=provider,
-                model=model,
-                base_url=base_url
+                settings=settings,
+                reviewer_settings=reviewer_settings,
             )
         except ReadmeGenerationError as e:
             # Nothing is written: an empty README would replace the user's

@@ -77,8 +77,11 @@ def get_prompt_template_hash() -> str:
 
 def create_summarizer(file_path, language,
     content,provider=None, model_name=None, base_url=None,):
+    # No local default here: an unset provider resolves to the project default
+    # in one place, so this call and the reviewer's can no longer end up on
+    # different vendors with the same --model.
     model = create_llm(
-        provider=provider or "groq",
+        provider=provider,
         model=model_name,
         base_url=base_url,
     )

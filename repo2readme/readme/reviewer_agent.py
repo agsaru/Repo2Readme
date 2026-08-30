@@ -16,8 +16,17 @@ def readme_reviewer(
     model_name: str | None = None,
     base_url: str | None = None,
 ):
+    """Score a README and say how to improve it.
+
+    The provider used to default to ``"google"`` here while every other call
+    site defaulted to ``"groq"``, so a run without ``--provider`` needed two
+    vendors and two API keys, and ``--model`` was handed to both of them - a
+    Groq model name means nothing to Google, and "model not found" is not
+    retried. The reviewer now follows whatever the rest of the run resolved to;
+    pointing it at a different vendor is deliberate, via --reviewer-provider.
+    """
     model = create_llm(
-        provider=provider or "google",
+        provider=provider,
         model=model_name,
         base_url=base_url,
     )

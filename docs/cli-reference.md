@@ -24,9 +24,12 @@ repo2readme run [OPTIONS]
 | `--include <PATTERN>` | | Glob pattern for files to include, even if normally filtered out. Can be passed multiple times. |
 | `--exclude <PATTERN>` | | Glob pattern for files to exclude. Can be passed multiple times. |
 | `--max-file-size-kb <N>` | | Skip files larger than N KB. |
-| `--provider <NAME>` | | LLM provider to use. See `repo2readme providers`. |
+| `--provider <NAME>` | `groq` | LLM provider for the whole run. See `repo2readme providers`. |
 | `--model <NAME>` | | Model name. Defaults to the selected provider's default model. |
 | `--base-url <URL>` | | Base URL override for OpenAI-compatible providers. |
+| `--reviewer-provider <NAME>` | `--provider` | Provider for the README review step. Set it only to review with a different vendor on purpose. |
+| `--reviewer-model <NAME>` | `--model` | Model for the review step. Falls back to the reviewer provider's default when that provider differs from `--provider`. |
+| `--reviewer-base-url <URL>` | `--base-url` | Base URL for the review step. |
 
 You must provide exactly one of `--url` or `--local`.
 

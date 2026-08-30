@@ -278,7 +278,6 @@ class TestOrchestratorIntegration:
 
         result = orchestrator.run_pipeline(
             summaries=[], tree="", dependency_overview="",
-            provider=None, model=None, base_url=None,
         )
 
         assert result == "# Title\n\nBody.\n"
@@ -291,7 +290,6 @@ class TestOrchestratorIntegration:
         with caplog.at_level(logging.WARNING, logger="repo2readme.services.orchestrator"):
             orchestrator.run_pipeline(
                 summaries=[], tree="", dependency_overview="",
-                provider=None, model=None, base_url=None,
             )
 
         assert "broken-anchor" in caplog.text
@@ -303,7 +301,6 @@ class TestOrchestratorIntegration:
         with caplog.at_level(logging.WARNING, logger="repo2readme.services.orchestrator"):
             orchestrator.run_pipeline(
                 summaries=[], tree="", dependency_overview="",
-                provider=None, model=None, base_url=None,
             )
 
         assert caplog.text == ""
