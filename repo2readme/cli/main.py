@@ -37,6 +37,13 @@ from repo2readme.services.estimation import format_size, estimate_analysis_cost
 from repo2readme.services.summarization import generate_all_summaries, generate_hierarchical_summaries
 from repo2readme.services.orchestrator import ReadmeGenerationError, run_pipeline
 from repo2readme.services.reporting import partition_summaries, render_report
+from repo2readme.services.stats import (
+    RepoStats,
+    analyze_repository,
+    format_bytes,
+    format_stats_summary,
+    health_bar,
+)
 from repo2readme.utils.workers import validate_max_workers
 
 
@@ -465,6 +472,340 @@ def reset():
         rprint("Run repo2readme again to reconfigure keys.")
     else:
         rprint("[yellow]No API key file found to reset.[/yellow]")
+
+
+@main.command()
+@click.option(
+    "--url",
+    "-u",
+    help="Git repository URL (https, ssh, git:// or git@host:path).",
+)
+@click.option("--local", "-l", help="Local repo path")
+@click.option(
+    "--include",
+    "include_patterns",
+    multiple=True,
+    help="Glob pattern for files to include even if ignored by default. Can be used multiple times.",
+)
+@click.option(
+    "--exclude",
+    "exclude_patterns",
+    multiple=True,
+    help="Glob pattern for files to exclude. Can be used multiple times.",
+)
+@click.option(
+    "--max-file-size-kb",
+    default=200,
+    show_default=True,
+    type=int,
+    help="Maximum file size in KB to include during analysis.",
+)
+@click.option(
+    "--respect-gitignore",
+    is_flag=True,
+    default=False,
+    help="Respect .gitignore and .git/info/exclude patterns",
+)
+@click.option(
+    "--max-workers",
+    default=None,
+    type=int,
+    callback=validate_max_workers_option,
+    help="Number of parallel worker threads",
+)
+@click.option(
+    "--branch",
+    "-b",
+    default="main",
+    show_default=True,
+    help="Branch to clone when using --url.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json", "compact"]),
+    default="table",
+    show_default=True,
+    help="Output format for the statistics report.",
+)
+def stats(url, local, include_patterns, exclude_patterns, max_file_size_kb, respect_gitignore, max_workers, branch, output_format):
+    """Analyze a repository and display project health statistics.
+
+    No API keys are required — this performs static analysis only.
+    Use --url for a GitHub repo or --local for a local path.
+    """
+    import json as json_mod
+
+    if not url and not local:
+        rprint("[red]Provide either --url or --local[/red]")
+        return
+
+    source = url if url else local
+
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Loading repository...", total=1)
+        try:
+            loader = RepoLoader(
+                source,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size_kb=max_file_size_kb,
+                respect_gitignore=respect_gitignore,
+                max_workers=max_workers,
+                branch=branch,
+            )
+            files, root_path, loader_obj = loader.load()
+        except Exception as e:
+            rprint(f"[red]Failed to load repository: {e}[/red]")
+            return
+        progress.update(task, advance=1)
+
+    documents = []
+    for f in files:
+        documents.append({
+            "content": f.page_content,
+            "metadata": f.metadata,
+        })
+
+    rprint(f"[cyan]Analyzing {len(documents)} files...[/cyan]")
+
+    repo_stats = analyze_repository(documents, root_path)
+
+    if output_format == "json":
+        _render_stats_json(repo_stats)
+    elif output_format == "compact":
+        _render_stats_compact(repo_stats)
+    else:
+        _render_stats_table(repo_stats)
+
+    if hasattr(loader_obj, "cleanup"):
+        loader_obj.cleanup()
+
+
+def _render_stats_table(stats: RepoStats) -> None:
+    """Render stats as rich tables."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    rprint("")
+    rprint(Panel(
+        f"[bold]Project Statistics[/bold]\n\n{format_stats_summary(stats)}",
+        title="Repository Analysis",
+        border_style="cyan",
+    ))
+
+    # Overview table
+    overview = Table(title="Overview", show_header=False, border_style="blue")
+    overview.add_column("Metric", style="bold")
+    overview.add_column("Value", justify="right")
+    overview.add_row("Total files", str(stats.total_files))
+    overview.add_row("Total size", format_bytes(stats.total_size_bytes))
+    overview.add_row("Total lines", f"{stats.total_lines:,}")
+    overview.add_row("Code lines", f"{stats.total_code_lines:,}")
+    overview.add_row("Blank lines", f"{stats.total_blank_lines:,}")
+    overview.add_row("Comment lines", f"{stats.total_comment_lines:,}")
+    overview.add_row("Documentation files", str(stats.documentation_files))
+    overview.add_row("Test files", str(stats.test_files))
+    overview.add_row("Config files", str(stats.config_files))
+    overview.add_row("Top-level directories", str(len(stats.top_level_dirs)))
+    rprint(overview)
+    rprint("")
+
+    # Language breakdown
+    code_langs = {k: v for k, v in stats.languages.items() if v.code_lines > 0}
+    if code_langs:
+        lang_table = Table(title="Language Breakdown", border_style="green")
+        lang_table.add_column("Language", style="bold")
+        lang_table.add_column("Files", justify="right")
+        lang_table.add_column("Code Lines", justify="right")
+        lang_table.add_column("% of Code", justify="right")
+        lang_table.add_column("Comments", justify="right")
+        lang_table.add_column("Avg Complexity", justify="right")
+        lang_table.add_column("Avg File Size", justify="right")
+
+        for lang, ls in code_langs.items():
+            pct = (ls.code_lines / stats.total_code_lines * 100) if stats.total_code_lines else 0
+            lang_table.add_row(
+                lang,
+                str(ls.file_count),
+                f"{ls.code_lines:,}",
+                f"{pct:.1f}%",
+                f"{ls.comment_ratio:.0%}",
+                f"{ls.avg_complexity:.1f}",
+                f"{ls.avg_file_size_lines:.0f} lines",
+            )
+        rprint(lang_table)
+        rprint("")
+
+    # Top-level directory breakdown
+    if stats.top_level_dirs:
+        dir_table = Table(title="Directory Structure", border_style="yellow")
+        dir_table.add_column("Directory", style="bold")
+        dir_table.add_column("Files", justify="right")
+        dir_table.add_column("Size", justify="right")
+        dir_table.add_column("Languages")
+
+        for dir_name, ds in list(stats.top_level_dirs.items())[:15]:
+            top_langs = sorted(ds.languages.items(), key=lambda x: x[1], reverse=True)[:3]
+            lang_str = ", ".join(f"{l} ({c})" for l, c in top_langs)
+            dir_table.add_row(
+                dir_name,
+                str(ds.file_count),
+                format_bytes(ds.total_size_bytes),
+                lang_str,
+            )
+        rprint(dir_table)
+        rprint("")
+
+    # Largest files
+    if stats.largest_files:
+        size_table = Table(title="Largest Files", border_style="red")
+        size_table.add_column("File", style="bold", max_width=50)
+        size_table.add_column("Size", justify="right")
+        size_table.add_column("Lines", justify="right")
+        size_table.add_column("Language")
+
+        for fs in stats.largest_files:
+            display = fs.relative_path if fs.relative_path else fs.path
+            if len(display) > 50:
+                display = "..." + display[-47:]
+            size_table.add_row(
+                display,
+                format_bytes(fs.size_bytes),
+                str(fs.line_count),
+                fs.language,
+            )
+        rprint(size_table)
+        rprint("")
+
+    # Most complex files
+    complex_files = [f for f in stats.most_complex_files if f.complexity_score > 1]
+    if complex_files:
+        cx_table = Table(title="Most Complex Files", border_style="magenta")
+        cx_table.add_column("File", style="bold", max_width=50)
+        cx_table.add_column("Complexity", justify="right")
+        cx_table.add_column("Lines", justify="right")
+        cx_table.add_column("Code Lines", justify="right")
+        cx_table.add_column("Language")
+
+        for fs in complex_files[:10]:
+            display = fs.relative_path if fs.relative_path else fs.path
+            if len(display) > 50:
+                display = "..." + display[-47:]
+            cx_table.add_row(
+                display,
+                str(fs.complexity_score),
+                str(fs.line_count),
+                str(fs.code_lines),
+                fs.language,
+            )
+        rprint(cx_table)
+        rprint("")
+
+    # Health scores
+    rprint(Panel(
+        f"Documentation:  {health_bar(stats.documentation_score)}\n"
+        f"Code Quality:   {health_bar(stats.code_quality_score)}\n"
+        f"Maturity:       {health_bar(stats.project_maturity_score)}\n\n"
+        f"Overall:        {health_bar((stats.documentation_score + stats.code_quality_score + stats.project_maturity_score) / 3)}",
+        title="Health Scores",
+        border_style="cyan",
+    ))
+
+
+def _render_stats_json(stats: RepoStats) -> None:
+    """Render stats as JSON to stdout."""
+    import json as json_mod
+
+    data = {
+        "total_files": stats.total_files,
+        "total_size_bytes": stats.total_size_bytes,
+        "total_lines": stats.total_lines,
+        "total_code_lines": stats.total_code_lines,
+        "total_blank_lines": stats.total_blank_lines,
+        "total_comment_lines": stats.total_comment_lines,
+        "documentation_files": stats.documentation_files,
+        "test_files": stats.test_files,
+        "config_files": stats.config_files,
+        "languages": {
+            name: {
+                "file_count": ls.file_count,
+                "code_lines": ls.code_lines,
+                "total_lines": ls.total_lines,
+                "comment_lines": ls.comment_lines,
+                "blank_lines": ls.blank_lines,
+                "total_bytes": ls.total_bytes,
+                "avg_complexity": round(ls.avg_complexity, 2),
+                "comment_ratio": round(ls.comment_ratio, 4),
+            }
+            for name, ls in stats.languages.items()
+            if ls.file_count > 0
+        },
+        "top_level_dirs": {
+            name: {
+                "file_count": ds.file_count,
+                "total_size_bytes": ds.total_size_bytes,
+                "languages": ds.languages,
+            }
+            for name, ds in stats.top_level_dirs.items()
+        },
+        "health_scores": {
+            "documentation": round(stats.documentation_score, 1),
+            "code_quality": round(stats.code_quality_score, 1),
+            "maturity": round(stats.project_maturity_score, 1),
+            "overall": round(
+                (stats.documentation_score + stats.code_quality_score + stats.project_maturity_score) / 3,
+                1,
+            ),
+        },
+        "largest_files": [
+            {
+                "path": fs.relative_path or fs.path,
+                "size_bytes": fs.size_bytes,
+                "line_count": fs.line_count,
+                "language": fs.language,
+            }
+            for fs in stats.largest_files
+        ],
+        "most_complex_files": [
+            {
+                "path": fs.relative_path or fs.path,
+                "complexity_score": fs.complexity_score,
+                "line_count": fs.line_count,
+                "code_lines": fs.code_lines,
+                "language": fs.language,
+            }
+            for fs in stats.most_complex_files
+            if fs.complexity_score > 1
+        ],
+    }
+    rprint(json_mod.dumps(data, indent=2))
+
+
+def _render_stats_compact(stats: RepoStats) -> None:
+    """Render a compact single-table summary."""
+    from rich.table import Table
+
+    table = Table(title="Repository Stats", border_style="cyan")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Files", str(stats.total_files))
+    table.add_row("Size", format_bytes(stats.total_size_bytes))
+    table.add_row("Code lines", f"{stats.total_code_lines:,}")
+    table.add_row("Test files", str(stats.test_files))
+    table.add_row("Doc files", str(stats.documentation_files))
+
+    code_langs = {k: v for k, v in stats.languages.items() if v.code_lines > 0}
+    if code_langs:
+        lang_strs = [f"{k} ({v.code_lines:,})" for k, v in list(code_langs.items())[:5]]
+        table.add_row("Languages", ", ".join(lang_strs))
+
+    overall = (stats.documentation_score + stats.code_quality_score + stats.project_maturity_score) / 3
+    table.add_row("Health score", f"{overall:.0f}/100")
+
+    rprint(table)
 
 
 if __name__ == "__main__":
