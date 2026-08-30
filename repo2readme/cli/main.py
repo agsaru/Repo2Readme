@@ -467,5 +467,54 @@ def reset():
         rprint("[yellow]No API key file found to reset.[/yellow]")
 
 
+@main.command()
+@click.argument("file", default="README.md", type=click.Path(exists=True))
+@click.option("--format", "output_format",
+              type=click.Choice(["text", "json"]), default="text",
+              show_default=True, help="Output format.")
+@click.option("--strict", is_flag=True, default=False,
+              help="Exit with non-zero status on warnings (not just errors).")
+def validate(file, output_format, strict):
+    """Validate a README or Markdown file for quality issues.
+
+    Checks heading structure, broken links, placeholder content, style
+    issues, code block balance, and common documentation anti-patterns.
+    No API keys required.
+    """
+    import json as json_mod
+    from repo2readme.services.validator import (
+        validate_file, format_result, Severity,
+    )
+
+    result = validate_file(file)
+
+    if output_format == "json":
+        data = {
+            "file": file,
+            "passed": result.passed,
+            "errors": result.error_count,
+            "warnings": result.warning_count,
+            "info": result.info_count,
+            "issues": [
+                {
+                    "severity": i.severity.value,
+                    "rule": i.rule,
+                    "message": i.message,
+                    "line": i.line,
+                }
+                for i in result.issues
+            ],
+        }
+        rprint(json_mod.dumps(data, indent=2))
+    else:
+        rprint(format_result(result, file))
+
+    if not result.passed:
+        raise SystemExit(1)
+    if strict and result.warning_count > 0:
+        rprint(f"[yellow]--strict: {result.warning_count} warning(s) found.[/yellow]")
+        raise SystemExit(1)
+
+
 if __name__ == "__main__":
     main()
