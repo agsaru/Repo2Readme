@@ -467,5 +467,125 @@ def reset():
         rprint("[yellow]No API key file found to reset.[/yellow]")
 
 
+@main.group(invoke_without_command=True)
+@click.pass_context
+def cache(ctx):
+    """Manage the summary cache (show stats, list, clear, prune)."""
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+def _get_cache_dir() -> str:
+    return os.path.join(os.getcwd(), ".repo2readme", "cache")
+
+
+@cache.command("stats")
+def cache_stats():
+    """Show cache statistics and entry counts."""
+    from rich.panel import Panel
+    from rich.table import Table
+    from repo2readme.services.cache_manager import get_cache_stats
+
+    stats = get_cache_stats(_get_cache_dir())
+
+    if not stats.cache_exists:
+        rprint("[yellow]No cache found. Run 'repo2readme run' first.[/yellow]")
+        return
+
+    rprint(Panel(
+        f"Entries: {stats.total_entries}\n"
+        f"Size: {stats.cache_size_bytes / 1024:.1f} KB\n"
+        f"Schema: {stats.schema_version}\n"
+        f"Config: {stats.config_hash}...",
+        title="Summary Cache",
+        border_style="cyan",
+    ))
+
+    if stats.languages:
+        table = Table(title="Cached Languages", border_style="green")
+        table.add_column("Language", style="bold")
+        table.add_column("Files", justify="right")
+        for lang, count in sorted(stats.languages.items(), key=lambda x: x[1], reverse=True):
+            table.add_row(lang, str(count))
+        rprint(table)
+
+
+@cache.command("list")
+@click.option("--lang", default=None, help="Filter by language.")
+@click.option("--limit", default=20, show_default=True, type=int, help="Max entries to show.")
+def cache_list(lang, limit):
+    """List cached file summaries."""
+    from rich.table import Table
+    from repo2readme.services.cache_manager import list_entries
+
+    entries = list_entries(_get_cache_dir(), language=lang, limit=limit)
+
+    if not entries:
+        rprint("[yellow]No cached entries found.[/yellow]")
+        return
+
+    table = Table(title=f"Cached Entries ({len(entries)} shown)", border_style="cyan")
+    table.add_column("File", style="bold", max_width=50)
+    table.add_column("Language")
+    table.add_column("Hash")
+    table.add_column("Age")
+    table.add_column("Description", max_width=40)
+
+    for e in entries:
+        display = e.file_path
+        if len(display) > 50:
+            display = "..." + display[-47:]
+        table.add_row(display, e.language, e.content_hash, e.age_display, e.summary_preview)
+    rprint(table)
+
+
+@cache.command("clear")
+@click.confirmation_option(prompt="Are you sure you want to clear the cache?")
+def cache_clear():
+    """Clear all cached summaries."""
+    from repo2readme.services.cache_manager import clear_cache
+
+    result = clear_cache(_get_cache_dir())
+    if result.success:
+        rprint(f"[green]{result.message}[/green]")
+    else:
+        rprint(f"[red]{result.message}[/red]")
+
+
+@cache.command("prune")
+@click.option("--max-age-days", default=None, type=float,
+              help="Remove entries older than N days.")
+def cache_prune(max_age_days):
+    """Remove stale cache entries."""
+    from repo2readme.services.cache_manager import prune_stale_entries
+
+    max_age = max_age_days * 86400 if max_age_days is not None else None
+    result = prune_stale_entries(_get_cache_dir(), max_age_seconds=max_age)
+
+    if result.success:
+        rprint(f"[green]{result.message}[/green]")
+    else:
+        rprint(f"[red]{result.message}[/red]")
+
+
+@cache.command("lookup")
+@click.argument("file_path")
+def cache_lookup(file_path):
+    """Look up a specific file in the cache."""
+    from repo2readme.services.cache_manager import get_entry_detail
+
+    entry = get_entry_detail(_get_cache_dir(), file_path)
+    if entry is None:
+        rprint(f"[yellow]File not found in cache: {file_path}[/yellow]")
+        return
+
+    rprint(f"[bold]File:[/bold]       {entry.file_path}")
+    rprint(f"[bold]Language:[/bold]   {entry.language}")
+    rprint(f"[bold]Hash:[/bold]       {entry.content_hash}...")
+    rprint(f"[bold]Age:[/bold]        {entry.age_display}")
+    if entry.summary_preview:
+        rprint(f"[bold]Description:[/bold] {entry.summary_preview}")
+
+
 if __name__ == "__main__":
     main()
