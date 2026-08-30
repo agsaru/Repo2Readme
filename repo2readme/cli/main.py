@@ -467,5 +467,207 @@ def reset():
         rprint("[yellow]No API key file found to reset.[/yellow]")
 
 
+@main.command()
+@click.option(
+    "--url",
+    "-u",
+    help="Git repository URL (https, ssh, git:// or git@host:path).",
+)
+@click.option("--local", "-l", help="Local repo path")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    type=click.Path(),
+    help="Output file path.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["json", "csv", "markdown"]),
+    default="json",
+    show_default=True,
+    help="Export format.",
+)
+@click.option("--force", "-f", is_flag=True, help="Overwrite output without confirmation")
+@click.option(
+    "--include",
+    "include_patterns",
+    multiple=True,
+    help="Glob pattern for files to include.",
+)
+@click.option(
+    "--exclude",
+    "exclude_patterns",
+    multiple=True,
+    help="Glob pattern for files to exclude.",
+)
+@click.option(
+    "--max-file-size-kb",
+    default=200,
+    show_default=True,
+    type=int,
+    help="Maximum file size in KB.",
+)
+@click.option(
+    "--respect-gitignore",
+    is_flag=True,
+    default=False,
+    help="Respect .gitignore patterns",
+)
+@click.option(
+    "--max-workers",
+    default=None,
+    type=int,
+    callback=validate_max_workers_option,
+    help="Parallel worker threads",
+)
+@click.option(
+    "--lang",
+    "lang_filter",
+    multiple=True,
+    help="Only include files of this language (e.g. python, javascript). Can be repeated.",
+)
+@click.option(
+    "--path-pattern",
+    default=None,
+    help="Regex pattern to filter files by relative path.",
+)
+@click.option(
+    "--with-summaries",
+    is_flag=True,
+    default=False,
+    help="Include AI-generated file summaries (requires API keys).",
+)
+@click.option(
+    "--provider", default=None, help="LLM provider for summaries.")
+@click.option("--model", default=None, help="LLM model for summaries.")
+@click.option("--base-url", default=None, help="Base URL for OpenAI-compatible providers.")
+@click.option(
+    "--branch",
+    "-b",
+    default="main",
+    show_default=True,
+    help="Branch to clone when using --url.",
+)
+def export(url, local, output, output_format, force, include_patterns, exclude_patterns,
+           max_file_size_kb, respect_gitignore, max_workers, lang_filter, path_pattern,
+           with_summaries, provider, model, base_url, branch):
+    """Export repository file metadata in structured formats (JSON, CSV, Markdown).
+
+    No API keys are required unless --with-summaries is passed.
+    """
+    from repo2readme.services.exporter import (
+        ExportResult,
+        build_export_result,
+        export_csv,
+        export_json,
+        export_markdown,
+        write_export,
+    )
+    from repo2readme.llm.settings import resolve_settings, UnknownProviderError
+
+    if not url and not local:
+        rprint("[red]Provide either --url or --local[/red]")
+        return
+
+    source = url if url else local
+
+    # Load the repository
+    with Progress() as progress:
+        task = progress.add_task("[cyan]Loading repository...", total=1)
+        try:
+            loader = RepoLoader(
+                source,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size_kb=max_file_size_kb,
+                respect_gitignore=respect_gitignore,
+                max_workers=max_workers,
+                branch=branch,
+            )
+            files, root_path, loader_obj = loader.load()
+        except Exception as e:
+            rprint(f"[red]Failed to load repository: {e}[/red]")
+            return
+        progress.update(task, advance=1)
+
+    documents = [{"content": f.page_content, "metadata": f.metadata} for f in files]
+
+    # Optionally generate summaries (requires API keys)
+    summaries = None
+    if with_summaries:
+        try:
+            settings = resolve_settings(provider, model, base_url)
+        except UnknownProviderError as e:
+            rprint(f"[red]{e}[/red]")
+            return
+
+        from repo2readme.services.environment import setup_api_keys
+        from repo2readme.services.summarization import generate_all_summaries
+        from repo2readme.cache import SummaryCache
+        from repo2readme.summarize.summary import get_prompt_template_hash
+        import os as _os
+
+        cache_dir = _os.path.join(_os.getcwd(), ".repo2readme", "cache")
+        cache = SummaryCache(
+            cache_dir=cache_dir,
+            config=settings.as_cache_config(),
+            prompt_template_hash=get_prompt_template_hash(),
+            autosave=False,
+        )
+
+        try:
+            setup_api_keys(settings)
+        except Exception as e:
+            rprint(f"[red]Failed to configure API keys: {e}[/red]")
+            return
+
+        with Progress() as progress:
+            task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=len(documents))
+            summaries, _ = generate_all_summaries(
+                documents=documents,
+                summary_cache=cache,
+                provider=settings.provider,
+                model=settings.model,
+                base_url=settings.base_url,
+                max_workers=max_workers,
+                progress=progress,
+                task_id=task,
+            )
+        cache.flush()
+
+    # Build export result
+    result = build_export_result(documents, summaries)
+
+    # Apply filters
+    languages_set = set(lang_filter) if lang_filter else None
+    filtered = result.filtered(languages=languages_set, path_pattern=path_pattern)
+
+    rprint(f"[cyan]Exporting {len(filtered)} files ({result.total_size_bytes:,} bytes)[/cyan]")
+
+    # Generate output
+    if output_format == "json":
+        content = export_json(result, include_summaries=with_summaries)
+    elif output_format == "csv":
+        content = export_csv(result, entries=filtered)
+    else:  # markdown
+        content = export_markdown(result, entries=filtered)
+
+    # Write or print
+    if output:
+        try:
+            write_export(content, output, force=force)
+            rprint(f"[green]Exported to {output}[/green]")
+        except FileExistsError:
+            rprint(f"[red]File exists: {output}. Use --force to overwrite.[/red]")
+            return
+    else:
+        rprint(content)
+
+    if hasattr(loader_obj, "cleanup"):
+        loader_obj.cleanup()
+
+
 if __name__ == "__main__":
     main()
