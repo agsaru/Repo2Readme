@@ -264,11 +264,11 @@ class TestOrchestratorIntegration:
     def _patch_workflow(self, monkeypatch, readme_text):
         from repo2readme.services import orchestrator
 
-        class FakeWorkflow:
-            def invoke(self, _state):
-                return {"best_readme": readme_text}
-
-        monkeypatch.setattr(orchestrator, "build_workflow", lambda: FakeWorkflow())
+        monkeypatch.setattr(
+            orchestrator,
+            "generate_readme_with_review",
+            lambda *_args, **_kwargs: {"best_readme": readme_text, "readme": [readme_text]},
+        )
         return orchestrator
 
     def test_pipeline_returns_normalized_markdown(self, monkeypatch):
