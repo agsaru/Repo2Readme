@@ -39,6 +39,22 @@ from repo2readme.services.reporting import partition_summaries, render_report
 from repo2readme.utils.workers import validate_max_workers
 
 
+
+def validate_max_file_size_option(ctx, param, value):
+    if value < 0:
+        raise click.BadParameter(
+            "must be non-negative",
+            ctx=ctx,
+            param=param,
+        )
+    return value
+
+
+def cleanup_loader(loader_obj):
+    cleanup = getattr(loader_obj, "cleanup", None)
+    if cleanup:
+        cleanup()
+
 def validate_max_workers_option(ctx, param, value):
     """Reject an unusable --max-workers before the repository is loaded.
 
@@ -102,6 +118,7 @@ def main():
     default=200,
     show_default=True,
     type=int,
+    callback=validate_max_file_size_option,
     help="Maximum file size in KB to include during repository analysis.",
 )
 @click.option(
@@ -227,7 +244,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 skipped = []
         except Exception as e:
             rprint(f"[red]Failed to load repository: {e}[/red]")
-            return
+            raise SystemExit(1) from e
         progress.update(task, advance=1)
 
     documents = []
@@ -278,15 +295,13 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             rprint(f"Reviewer           : {reviewer_settings.describe()}")
         rprint("\n[green]Dry run complete.[/green]")
         rprint("[yellow]No API requests were made.[/yellow]")
-        if hasattr(loader_obj, "cleanup"):
-            loader_obj.cleanup()
+        cleanup_loader(loader_obj)
         return
 
     # Avoid requesting API keys when there is nothing to summarize.
     if not documents:
         rprint("[red]No eligible files were found in the repository.[/red]")
-        if hasattr(loader_obj, "cleanup"):
-            loader_obj.cleanup()
+        cleanup_loader(loader_obj)
         raise SystemExit(1)
 
     rprint("\n[bold]Repository Analysis[/bold]\n")
@@ -299,16 +314,22 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
 
     try:
         if not force:
-            proceed = click.confirm("\nProceed?", default=False)
+            try:
+                proceed = click.confirm("\nProceed?", default=False)
+            except BaseException:
+                cleanup_loader(loader_obj)
+                raise
             if not proceed:
                 rprint("[yellow]Operation cancelled.[/yellow]")
+                cleanup_loader(loader_obj)
                 return
 
         try:
             setup_api_keys(settings, reviewer_settings)
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
-            return
+            cleanup_loader(loader_obj)
+            raise SystemExit(1) from e
 
         with Progress() as progress:
             task = progress.add_task("[cyan]Generating summaries...[/cyan]", total=total_documents)
@@ -409,9 +430,10 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
 
     finally:
         # Persist cached summaries even if the run is interrupted.
-        summary_cache.flush()
-        if hasattr(loader_obj, "cleanup"):
-            loader_obj.cleanup()
+        try:
+            summary_cache.flush()
+        finally:
+            cleanup_loader(loader_obj)
 
 
 @main.command()
