@@ -43,7 +43,7 @@ def summary_cache_key(
     file_path = metadata["file_path"]
     relative_path = metadata.get("relative_path")
     if cache_namespace and relative_path:
-        return f"{cache_namespace}/{relative_path.replace(chr(92), '/')}"
+        return f"{cache_namespace}/{relative_path.replace("\\\\", "/")}"
     return file_path
 
 
