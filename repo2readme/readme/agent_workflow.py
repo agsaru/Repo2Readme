@@ -9,9 +9,7 @@ from repo2readme.readme.reviewer_agent import readme_reviewer
 
 logger = logging.getLogger(__name__)
 
-# Score recorded for a draft whose review never came back. It has to be a real
-# number because ``readme_condition`` reads the last score, and it has to be low
-# enough never to win against a draft that was actually reviewed.
+# A failed review must not outrank a reviewed draft.
 UNREVIEWED_SCORE = 0.0
 
 
@@ -29,10 +27,6 @@ class ReadmeState(TypedDict):
     provider: str | None
     model: str | None
     base_url: str | None
-    # The reviewer runs on the same provider and model as the generator unless
-    # it was explicitly pointed elsewhere. These fields carry that override;
-    # nothing here is inferred from --model, which is what used to hand a model
-    # name to a vendor it did not belong to.
     reviewer_provider: str | None
     reviewer_model: str | None
     reviewer_base_url: str | None
@@ -87,9 +81,7 @@ def readme_reviewer_node(state: ReadmeState):
             base_url=state.get("reviewer_base_url") or state["base_url"],
         )
     except Exception as exc:
-        # The reviewer is an improvement step, not a gate. Losing it costs the
-        # run another polishing round; it must not cost the run the draft that
-        # every summary was spent on, which is what re-raising here did.
+        # Keep the generated draft if review fails.
         logger.warning("README review failed, keeping the current draft: %s", exc)
         best_readme, best_score = choose_best(
             state['best_readme'], state['best_score'], latest_readme, UNREVIEWED_SCORE
@@ -110,10 +102,7 @@ def readme_reviewer_node(state: ReadmeState):
     return {
         'score': [review.score],
         'feedback': [review.feedback],
-        # One entry per iteration, empty when the review came back, so the
-        # latest entry always describes the latest review. Returning [] here
-        # would add nothing to an accumulating channel, leaving an older
-        # failure looking like the current one.
+        # Record an empty error for successful reviews so the latest status is clear.
         'review_errors': [''],
         'iteration_no': state['iteration_no'] + 1,
         'best_score': best_score,
@@ -132,10 +121,7 @@ def readme_condition(state: ReadmeState):
     max_iterations = state['max_iterations']
     iteration = state['iteration_no']
 
-    # Without a review there is no feedback to improve on, so another round
-    # would just re-ask the same question and spend another call. Only the
-    # latest review counts: an earlier failure must not end a run whose most
-    # recent review succeeded.
+    # Stop when the latest review failed; another iteration would have no feedback.
     if latest_review_error(state):
         return END
 
