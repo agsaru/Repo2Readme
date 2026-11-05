@@ -62,9 +62,8 @@ def generate_all_summaries(
     if total_documents == 0:
         return summaries, errors
 
-    summaries_lock = threading.Lock()
-    errors_lock = threading.Lock()
-    
+    results_lock = threading.Lock()
+
     def process_document(doc):
         meta = doc["metadata"]
         file_path = meta["file_path"]
@@ -72,46 +71,38 @@ def generate_all_summaries(
             lang = resolve_language(meta, doc["content"])
             cached = summary_cache.get(file_path, doc["content"], lang)
             if cached is not None:
-                with summaries_lock:
+                with results_lock:
                     summaries.append(cached)
                 return
 
-            if provider or model or base_url:
-                summary = summarize_file(
-                    file_path=file_path,
-                    language=lang,
-                    content=doc["content"],
-                    provider=provider,
-                    model_name=model,
-                    base_url=base_url,
-                )
-            else:
-                summary = summarize_file(
-                    file_path=file_path,
-                    language=lang,
-                    content=doc["content"],
-                )
-            with summaries_lock:
+            summary = summarize_file(
+                file_path=file_path,
+                language=lang,
+                content=doc["content"],
+                provider=provider,
+                model_name=model,
+                base_url=base_url,
+            )
+            with results_lock:
                 summaries.append(summary)
-            # Only cache successful summaries; failed ones will be retried
+
             if not isinstance(summary, dict) or "error" not in summary:
                 summary_cache.put(
                     file_path, doc["content"], lang, summary, meta.get("mtime", 0)
                 )
-        except Exception as e:
-            with errors_lock:
-                errors.append(SummaryFailure(file_path=file_path, reason=str(e)))
-
+        except Exception as exc:
+            with results_lock:
+                errors.append(SummaryFailure(file_path=file_path, reason=str(exc)))
 
     effective_workers = resolve_worker_count(max_workers, total_documents)
 
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
-        futures = {executor.submit(process_document, doc): doc for doc in documents}
-        
-        for future in as_completed(futures):
+        futures = [executor.submit(process_document, doc) for doc in documents]
+
+        for _ in as_completed(futures):
             if progress and task_id is not None:
                 progress.update(task_id, advance=1)
-                
+
     return summaries, errors
 
 def build_directory_tree(file_summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
