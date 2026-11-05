@@ -22,7 +22,6 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "pathspec>=0.12.1",
     "langchain-core>=1.2.0",
-    "langgraph>=1.0.0",
     "langchain-groq>=1.1.1",
 ]
 
