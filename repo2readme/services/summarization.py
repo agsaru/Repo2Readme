@@ -36,18 +36,6 @@ def resolve_language(metadata: Dict[str, Any], content: str) -> str:
     return detect_lang(path, content)
 
 
-def summary_cache_key(
-    metadata: Dict[str, Any], cache_namespace: str | None = None
-) -> str:
-    """Stable cache key for a document, including a remote repository namespace."""
-    file_path = metadata["file_path"]
-    relative_path = metadata.get("relative_path")
-    if cache_namespace and relative_path:
-        relative_path = relative_path.replace("\\", "/")
-        return f"{cache_namespace}/{relative_path}"
-    return file_path
-
-
 def generate_all_summaries(
     documents: List[Dict[str, Any]],
     summary_cache: SummaryCache,
@@ -57,7 +45,6 @@ def generate_all_summaries(
     max_workers: int | None = None,
     progress=None,
     task_id=None,
-    cache_namespace: str | None = None,
 ) -> tuple[List[Dict[str, Any]], List[SummaryFailure]]:
     """
     Concurrently generates summaries for all documents.
@@ -79,8 +66,7 @@ def generate_all_summaries(
         file_path = meta["file_path"]
         try:
             lang = resolve_language(meta, doc["content"])
-            cache_key = summary_cache_key(meta, cache_namespace)
-            cached = summary_cache.get(cache_key, doc["content"], lang)
+            cached = summary_cache.get(file_path, doc["content"], lang)
             if cached is not None:
                 summary = dict(cached) if isinstance(cached, dict) else cached
                 if isinstance(summary, dict):
@@ -106,7 +92,7 @@ def generate_all_summaries(
                 if meta.get("relative_path"):
                     summary["relative_path"] = meta["relative_path"]
                 summary_cache.put(
-                    cache_key, doc["content"], lang, summary, meta.get("mtime", 0)
+                    file_path, doc["content"], lang, summary, meta.get("mtime", 0)
                 )
 
             return summary, None
