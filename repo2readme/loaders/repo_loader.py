@@ -57,7 +57,13 @@ class RepoLoader:
 
     def load(self, return_skip_info=False):
         loader = self._build_loader()
-        result = loader.load(return_skip_info=return_skip_info)
+        try:
+            result = loader.load(return_skip_info=return_skip_info)
+        except BaseException:
+            cleanup = getattr(loader, "cleanup", None)
+            if cleanup:
+                cleanup()
+            raise
 
         if return_skip_info:
             docs, root_path, skipped = result
