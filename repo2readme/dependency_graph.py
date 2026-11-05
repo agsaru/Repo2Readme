@@ -99,8 +99,7 @@ class DependencyGraph:
         """
         ranked = sorted(
             [(f, self.get_incoming_count(f)) for f in self.nodes if self.get_incoming_count(f) > 0],
-            key=lambda x: x[1],
-            reverse=True,
+            key=lambda x: (-x[1], x[0]),
         )
         return ranked[:top_n]
 
@@ -226,7 +225,7 @@ def _resolve_python_import(
         Resolved absolute file path, or None if not found
     """
     # Standard library / third-party: skip
-    if not import_path or import_path.startswith("_"):
+    if not import_path:
         return None
 
     # Determine source directory for both relative and absolute imports
@@ -360,8 +359,10 @@ def _normalize_js_path(path: str) -> str:
     out: list[str] = []
     for part in parts:
         if part == "..":
-            if out:
+            if out and out[-1] != "..":
                 out.pop()
+            else:
+                out.append(part)
         elif part and part != ".":
             out.append(part)
     return "/".join(out)
@@ -520,7 +521,7 @@ def build_dependency_graph(documents: list[dict]) -> DependencyGraph:
         content = doc.get("content", "")
         source_file = metadata.get("file_path", "")
 
-        if not source_file or not content:
+        if not source_file:
             continue
 
         # Detect language from file type or content
