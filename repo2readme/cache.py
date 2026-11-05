@@ -330,7 +330,6 @@ class SummaryCache:
         # re-detected (and re-logged) on every subsequent run.
         self._dirty = True
         self._pending_updates += 1
-        self._revision += 1
         if self.autosave:
             self._save()
 
@@ -453,6 +452,5 @@ class SummaryCache:
             self._stats["removals"] += removed
             self._dirty = True
             self._pending_updates += 1
-            self._revision += 1
             if self.autosave:
                 self._save()
