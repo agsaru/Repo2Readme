@@ -16,6 +16,7 @@ object or a stray code fence usually parses on the second ask.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import random
 import re
@@ -143,8 +144,10 @@ def _read_float(source, name: str, default: float, minimum: float) -> float:
     except ValueError:
         logger.warning("Ignoring %s=%r: not a number", name, raw)
         return default
-    if value < minimum:
-        logger.warning("Ignoring %s=%r: must be >= %s", name, raw, minimum)
+    if not math.isfinite(value) or value < minimum:
+        logger.warning(
+            "Ignoring %s=%r: must be finite and >= %s", name, raw, minimum
+        )
         return default
     return value
 
