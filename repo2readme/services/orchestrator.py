@@ -23,7 +23,7 @@ def run_pipeline(
     reviewer_settings: LLMSettings | None = None,
 ) -> str:
     """
-    Invokes the LangGraph workflow to generate the README and returns the result.
+    Generates, reviews and returns the best README draft.
 
     ``settings`` is the provider, model and base URL the run already resolved;
     the generator and the reviewer both use it unless ``reviewer_settings``
