@@ -161,7 +161,7 @@ def generate_hierarchical_summaries(
     
     def process_dir(node: Dict[str, Any]) -> Any:
         child_summaries = []
-        for child_name, child_node in node["children"].items():
+        for child_node in node["children"].values():
             child_summary = process_dir(child_node)
             if child_summary:
                 if isinstance(child_summary, list):
