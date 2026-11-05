@@ -8,7 +8,7 @@ from typing import Iterable  # noqa: F401
 from repo2readme.utils.filter import github_file_filter
 from repo2readme.utils.force_remove import force_remove
 from repo2readme.utils.gitignore import is_gitignored  # noqa: F401
-from repo2readme.loaders.source import repo_name_from_url
+from repo2readme.loaders.source import classify_source, repo_name_from_url
 from repo2readme.loaders.traversal import TraversalPipeline
 from collections import OrderedDict  # noqa: F401
 from langchain_core.documents import Document
@@ -133,7 +133,10 @@ class UrlRepoLoader:
             raise ValueError(
                 f"max_file_size_kb must be non-negative, got {max_file_size_kb}"
             )
-        self.clone_url = clone_url
+        resolved_source = classify_source(clone_url)
+        if not resolved_source.is_remote:
+            raise ValueError("UrlRepoLoader requires a remote repository URL")
+        self.clone_url = resolved_source.value
         self.branch = branch
         self.include_patterns = include_patterns
         self.exclude_patterns = exclude_patterns
