@@ -323,21 +323,15 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
 
     try:
         if not force:
-            try:
-                proceed = click.confirm("\nProceed?", default=False)
-            except BaseException:
-                cleanup_loader(loader_obj)
-                raise
+            proceed = click.confirm("\nProceed?", default=False)
             if not proceed:
                 rprint("[yellow]Operation cancelled.[/yellow]")
-                cleanup_loader(loader_obj)
                 return
 
         try:
             setup_api_keys(settings, reviewer_settings)
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
-            cleanup_loader(loader_obj)
             raise SystemExit(1) from e
 
         with Progress() as progress:
