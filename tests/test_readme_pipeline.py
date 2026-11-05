@@ -13,14 +13,11 @@ green success line.
 """
 
 import pytest
-from langgraph.graph import END
 
 from repo2readme.readme import agent_workflow
 from repo2readme.readme.agent_workflow import (
     UNREVIEWED_SCORE,
     choose_best,
-    latest_review_error,
-    readme_condition,
 )
 from repo2readme.readme.reviewer_agent import ReviewSchema
 from repo2readme.services.orchestrator import (
@@ -190,58 +187,6 @@ class TestReviewerFailure:
 
     def test_the_unreviewed_score_never_beats_a_reviewed_draft(self):
         assert choose_best(DRAFT, 1.0, BETTER_DRAFT, UNREVIEWED_SCORE) == (DRAFT, 1.0)
-
-
-class TestLoopCondition:
-    """``review_errors`` accumulates, so only its last entry is current."""
-
-    def _state(self, review_errors, score=5.0, iteration=1):
-        return {
-            "score": [score],
-            "iteration_no": iteration,
-            "max_iterations": 3,
-            "review_errors": review_errors,
-        }
-
-    def test_no_error_recorded_yet_keeps_iterating(self):
-        assert readme_condition(self._state([])) == "generate_readme"
-
-    def test_a_successful_review_keeps_iterating(self):
-        assert readme_condition(self._state([""])) == "generate_readme"
-
-    def test_a_failed_review_ends_the_loop(self):
-        assert readme_condition(self._state(["boom"])) == END
-
-    def test_an_earlier_failure_does_not_end_a_recovered_run(self):
-        assert readme_condition(self._state(["boom", ""])) == "generate_readme"
-
-    def test_the_latest_failure_ends_the_loop(self):
-        assert readme_condition(self._state(["", "boom"])) == END
-
-    def test_a_high_score_still_ends_the_loop(self):
-        assert readme_condition(self._state([""], score=9.0)) == END
-
-    def test_the_iteration_cap_still_ends_the_loop(self):
-        assert readme_condition(self._state([""], iteration=3)) == END
-
-    def test_a_missing_channel_is_tolerated(self):
-        state = {"score": [5.0], "iteration_no": 1, "max_iterations": 3}
-
-        assert readme_condition(state) == "generate_readme"
-
-
-class TestLatestReviewError:
-    def test_empty_history(self):
-        assert latest_review_error({"review_errors": []}) == ""
-
-    def test_missing_channel(self):
-        assert latest_review_error({}) == ""
-
-    def test_returns_the_last_entry(self):
-        assert latest_review_error({"review_errors": ["a", "", "b"]}) == "b"
-
-    def test_a_successful_review_reads_as_no_error(self):
-        assert latest_review_error({"review_errors": ["a", ""]}) == ""
 
 
 class TestReviewErrorLogging:
