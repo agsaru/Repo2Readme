@@ -123,7 +123,7 @@ For OpenAI-compatible providers, use `--base-url` when a custom endpoint is need
 
 - Python 3.10+
 - Click and Rich for the CLI
-- GitPython and Pathspec for repository loading and filtering
+- Git CLI for cloning repositories and PathSpec for `.gitignore` matching
 - LangChain and LangGraph for model calls and README workflow
 - Groq as the default model integration
 - Optional integrations for Google, OpenAI-compatible providers, Anthropic, and Ollama
