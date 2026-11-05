@@ -2,9 +2,9 @@
 
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/repo2readme?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/repo2readme)
 
-Generate a professional `README.md` from any GitHub or local repository. `repo2readme` analyzes your project structure and file contents, then uses AI models to draft and iteratively refine a comprehensive, well-written README.
+Generate a professional `README.md` from any GitHub or local repository. `repo2readme` analyzes your project structure and file contents, then uses an AI model to draft and refine a comprehensive README.
 
-## 🌟 Table of Contents
+## Table of Contents
 
 - [About the Project](#about-the-project)
 - [Key Features](#key-features)
@@ -18,23 +18,40 @@ Generate a professional `README.md` from any GitHub or local repository. `repo2r
 
 ## About the Project
 
-`repo2readme` is a command-line interface (CLI) tool designed to automate the creation of high-quality `README.md` files. It scans your repository, summarizes key files, and iteratively generates and refines a README using AI agents. Whether your project is hosted on GitHub or resides locally, `repo2readme` streamlines documentation so your projects stay well-explained and easy to understand.
+`repo2readme` is a command-line tool that automates the creation of project documentation. It scans a repository, summarizes relevant files, and generates a README using the configured language model. It works with local directories and Git repositories.
 
 ## Key Features
 
-- **Repository Analysis** — automatically loads files and content from GitHub URLs or local directories.
-- **Intelligent Summarization** — uses a Groq LLM to summarize individual source files, capturing their purpose and functionality.
-- **Hierarchical Tree Generation** — creates a visual representation of your repository's directory structure.
-- **AI-Powered README Creation** — employs a Google Gemini model to draft comprehensive, structured `README.md` content.
-- **Iterative Refinement** — a reviewer agent (Google Gemini) scores and improves the generated README until a high-quality standard is met.
-- **File Filtering** — automatically ignores common development artifacts (`.git`, `node_modules`, `__pycache__`, lock files, images, archives, etc.), with `--include`/`--exclude`/`--max-file-size-kb` for fine control.
+- **Repository Analysis** — loads files from local directories or Git URLs.
+- **File Summarization** — summarizes source files using the configured language model.
+- **Repository Structure** — includes the analyzed file tree in the generated README.
+- **README Generation and Review** — generates a README and can refine it using reviewer feedback.
+- **File Filtering** — skips common development artifacts and supports include, exclude, and file-size options.
+- **Summary Cache** — reuses summaries when files have not changed.
 
 ## Installation
 
-Requires Python 3.10+.
+Requires Python 3.10 or higher.
+
+Install the default setup (Groq provider):
 
 ```bash
 pip install repo2readme
+```
+
+Install optional provider integrations only when you need them:
+
+```bash
+pip install "repo2readme[google]"    # Google Gemini
+pip install "repo2readme[openai]"    # OpenAI, OpenRouter, and Together
+pip install "repo2readme[anthropic]" # Anthropic
+pip install "repo2readme[ollama]"    # Local Ollama
+```
+
+You can combine extras, for example:
+
+```bash
+pip install "repo2readme[google,ollama]"
 ```
 
 Or install from source:
@@ -45,7 +62,7 @@ cd repo2readme
 pip install -e .
 ```
 
-Verify it installed:
+Verify the installation:
 
 ```bash
 repo2readme --help
@@ -53,148 +70,77 @@ repo2readme --help
 
 ## Usage
 
-`repo2readme` provides two commands: `run` to generate a README, and `reset` to clear stored API keys.
-
-### Generate a README
-
-**From a GitHub repository URL:**
-```bash
-repo2readme run --url https://github.com/agsaru/repo2readme -o README_NEW.md
-```
-
-**From a local repository path:**
-```bash
-repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
-```
-
-### Options
-
-| Flag | Short | Description |
-|---|---|---|
-| `--url <URL>` | `-u` | GitHub repository URL to process. |
-| `--local <PATH>` | `-l` | Path to a local repository. |
-| `--output <FILE_PATH>` | `-o` | Output file path (defaults to `README.md`). |
-| `--force` | `-f` | Overwrite output and skip the confirmation prompt. |
-| `--dry-run` | | Preview file selection & token estimate — no API calls, no keys required. |
-| `--include <PATTERN>` | | Glob pattern to force-include a file, even if normally filtered. |
-| `--exclude <PATTERN>` | | Glob pattern to exclude a file. |
-| `--max-file-size-kb <N>` | | Skip files larger than N KB. |
-
-You must provide exactly one of `--url` or `--local`.
-
-### Token estimation & confirmation
-
-Before making any API calls, `repo2readme` estimates file count, token usage, and request size, then asks for confirmation:
-
-```
-Repository Analysis
-
-Files to summarize : 45
-Estimated tokens   : ~120,000
-Request size       : ~420.5 KB
-
-Proceed? [y/N]
-```
-
-Pass `--force` to skip this prompt and overwrite the output automatically.
-
-### Dry run mode
-
-Preview what will be processed — no API calls, no API keys needed:
+Generate a README from a Git repository:
 
 ```bash
-repo2readme run --local ./path/to/your/repo --dry-run
+repo2readme run --url https://github.com/owner/project
 ```
 
-```
-Repository Tree
-
-project/
-├── src/
-├── tests/
-└── README.md
-
-Files to be processed
-
-✓ src/main.py
-✓ src/api.py
-✓ tests/test_api.py
-...
-
-Repository Analysis
-
-Files selected     : 45
-Estimated tokens   : ~120,000
-Request size       : ~420.5 KB
-
-Dry run complete.
-No API requests were made.
-```
-
-### Filtering files
-
-Default filters skip generated files, build artifacts, lock files, images, archives, and similar noise. Adjust with `--include`/`--exclude`/`--max-file-size-kb`:
+Or from a local repository:
 
 ```bash
-repo2readme run --local ./my-project --include "package.json"
-repo2readme run --local ./my-project --exclude "tests/*"
-repo2readme run --local ./my-project --include "*.json" --max-file-size-kb 200
+repo2readme run --local ./path/to/project
 ```
 
-### Reset stored API keys
+Preview the files that will be analyzed without making API calls:
 
 ```bash
-repo2readme reset
+repo2readme run --local . --dry-run
 ```
-Deletes the local key config file; you'll be re-prompted on the next `run`.
+
+Use a different provider:
+
+```bash
+repo2readme run --local . --provider google
+repo2readme run --local . --provider ollama --model llama3
+```
+
+Use `repo2readme run --help` to see all available options.
 
 ## Configuration
 
-`repo2readme` needs two API keys:
-
-| Variable | Used for |
-|---|---|
-| `GROQ_API_KEY` | File summarization (Groq `openai/gpt-oss-120b`) |
-| `GOOGLE_API_KEY` | README generation & review (Gemini `2.5-flash`) |
-
-On first run, the CLI prompts for these interactively and saves them to `~/.repo2readme_env.json` for future runs. Alternatively, set them as environment variables:
+The default provider is Groq. Set its API key before running:
 
 ```bash
 export GROQ_API_KEY="your_groq_api_key"
-export GOOGLE_API_KEY="your_google_api_key"
 ```
+
+You can also configure API keys through the CLI's interactive prompt. Other providers use their respective environment variables:
+
+| Provider | Environment variable |
+|---|---|
+| Groq | `GROQ_API_KEY` |
+| Google Gemini | `GOOGLE_API_KEY` |
+| OpenAI | `OPENAI_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Together AI | `TOGETHER_API_KEY` |
+| Ollama | No API key required |
+
+For OpenAI-compatible providers, use `--base-url` when a custom endpoint is needed. OpenRouter and Together AI have built-in base URLs.
 
 ## Tech Stack
 
-- 🐍 Python (>=3.10)
-- 🛠️ Setuptools
-- 🖱️ Click — CLI interface
-- ✨ Rich — terminal output & progress displays
-- ⚙️ GitPython — Git repository interaction
-- 🔑 python-dotenv — environment variable management
-- 🦜 LangChain (+ Community, Groq, Google GenAI integrations)
-- 💨 Groq — fast inference (`openai/gpt-oss-120b` for summarization)
-- 🚀 Google GenAI — Gemini models (`gemini-2.5-flash` for generation & review)
-- Pydantic — data validation for the reviewer agent schema
+- Python 3.10+
+- Click and Rich for the CLI
+- GitPython and Pathspec for repository loading and filtering
+- LangChain and LangGraph for model calls and README workflow
+- Groq as the default model integration
+- Optional integrations for Google, OpenAI-compatible providers, Anthropic, and Ollama
 
 ## How It Works
 
-1. **Repository Loading** — a `RepoLoader` picks a `UrlRepoLoader` (clones the GitHub repo into a temp directory) or `LocalRepoLoader` (reads your filesystem), and applies `github_file_filter` to skip irrelevant files (`.git`, `node_modules`, `package-lock.json`, `.env`, binaries, etc.).
-2. **Structure & File Analysis** — `generate_tree` builds a visual directory tree; each file's language is detected via `detect_lang`; `summarize_file` uses a Groq LLM to produce a concise, JSON-formatted summary of each file's purpose.
-3. **Iterative README Generation** — a LangGraph state machine alternates between:
-   - **Generation** (`generate_readme_node`, Gemini 2.5 Flash) — drafts a README from file summaries, the repo tree, prior drafts, and reviewer feedback.
-   - **Review** (`readme_reviewer_node`, Gemini 2.5 Flash) — scores the draft (1–10) with feedback.
-   - The loop stops once the README scores 8.5+ or a max iteration count is hit.
-4. **Output** — the best-scoring README is printed or saved to your chosen output file (default `README.md`).
-
-`repo2readme/config.py` handles secure API key storage/loading, and `force_remove` safely cleans up temporary clone directories.
+1. **Load the repository** — read a local directory or clone a Git repository.
+2. **Select files** — apply default ignore rules and the user's include, exclude, and size settings.
+3. **Analyze files** — detect file types, build the repository tree and summarize the selected files.
+4. **Generate the README** — use the summaries and repository structure to create a README.
+5. **Review the result** — when enabled by the workflow, use reviewer feedback to improve the draft.
+6. **Save the output** — print the README or write it to the requested path.
 
 ## Contributing
 
-Contributions are welcome! Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated. Please read the [Contributing Guide](CONTRIBUTING.md) for setup, coding standards, and the pull request process. By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and contribution guidelines. Please also follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-Copyright (c) 2025 Sarowar Jahan Biswas
