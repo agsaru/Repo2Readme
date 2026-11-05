@@ -348,3 +348,25 @@ class TestTraversalHonoursNestedRules:
 
         loaded = sorted(doc.metadata["relative_path"] for doc in documents)
         assert "frontend/generated/bundle.js" in loaded
+
+
+
+def test_nested_negation_overrides_root_rule(tmp_path):
+    (tmp_path / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    (nested / ".gitignore").write_text("!keep.log\n", encoding="utf-8")
+    (nested / "keep.log").write_text("keep", encoding="utf-8")
+
+    assert not is_gitignored(str(nested / "keep.log"), str(tmp_path))
+
+
+def test_root_gitignore_overrides_git_info_exclude(tmp_path):
+    git_info = tmp_path / ".git" / "info"
+    git_info.mkdir(parents=True)
+    (git_info / "exclude").write_text("important.log\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("!important.log\n", encoding="utf-8")
+    target = tmp_path / "important.log"
+    target.write_text("keep", encoding="utf-8")
+
+    assert not is_gitignored(str(target), str(tmp_path))
