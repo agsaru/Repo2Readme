@@ -172,11 +172,10 @@ def main():
 def run(url, local, output, force, backup, create_dirs, include_patterns, exclude_patterns, max_file_size_kb, dry_run, strict, respect_gitignore, max_workers, provider, model, base_url, reviewer_provider, reviewer_model, reviewer_base_url, branch):
     """ Use --url for GitHub repo url and --local for local repo
     """
-    if not url and not local:
-        rprint("[red]Provide either --url or --local[/red]")
-        return
+    if bool(url) == bool(local):
+        raise click.UsageError("Provide exactly one of --url or --local.")
 
-    source = url if url else local
+    source = url or local
 
     # Check the destination before anything is loaded or summarized. This used
     # to happen in the open() at the very end of the run, so a missing parent
@@ -297,6 +296,14 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         if hasattr(loader_obj, "cleanup"):
             loader_obj.cleanup()
         return
+
+    # An empty repository cannot produce useful summaries. Stop before
+    # asking for API keys or making model calls.
+    if not documents:
+        rprint("[red]No eligible files were found in the repository.[/red]")
+        if hasattr(loader_obj, "cleanup"):
+            loader_obj.cleanup()
+        raise SystemExit(1)
 
     # Normal execution: print estimation first
     rprint("\n[bold]Repository Analysis[/bold]\n")
