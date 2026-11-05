@@ -351,3 +351,26 @@ def test_clone_failure_is_reported_as_a_runtime_error(mock_run):
         loader.load()
 
     loader.cleanup()
+
+
+
+def test_remote_loader_is_cleaned_up_when_loading_fails(monkeypatch):
+    import repo2readme.loaders.repo_loader as repo_loader_module
+
+    cleaned = []
+
+    class FailingLoader:
+        def load(self, return_skip_info=False):
+            raise RuntimeError("clone failed")
+
+        def cleanup(self):
+            cleaned.append(True)
+
+    monkeypatch.setattr(
+        repo_loader_module, "UrlRepoLoader", lambda *_args, **_kwargs: FailingLoader()
+    )
+
+    with pytest.raises(RuntimeError, match="clone failed"):
+        RepoLoader("https://github.com/acme/app.git").load()
+
+    assert cleaned == [True]
