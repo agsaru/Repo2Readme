@@ -1,4 +1,3 @@
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 
@@ -6,7 +5,7 @@ from repo2readme.utils.detect_language import detect_lang
 from repo2readme.utils.workers import resolve_worker_count
 from repo2readme.summarize.summary import summarize_file
 from repo2readme.cache import SummaryCache
-from repo2readme.services.reporting import SummaryFailure
+from repo2readme.services.reporting import SummaryFailure, is_failed_summary
 
 def resolve_language(metadata: Dict[str, Any], content: str) -> str:
     """The language of a document, preferring what the traversal already found.
@@ -56,13 +55,11 @@ def generate_all_summaries(
     ``repo2readme.services.reporting.partition_summaries`` to split them out.
     """
     total_documents = len(documents)
-    summaries = []
-    errors: List[SummaryFailure] = []
-
     if total_documents == 0:
-        return summaries, errors
+        return [], []
 
-    results_lock = threading.Lock()
+    summaries: list[Any | None] = [None] * total_documents
+    errors: list[SummaryFailure | None] = [None] * total_documents
 
     def process_document(doc):
         meta = doc["metadata"]
@@ -71,9 +68,10 @@ def generate_all_summaries(
             lang = resolve_language(meta, doc["content"])
             cached = summary_cache.get(file_path, doc["content"], lang)
             if cached is not None:
-                with results_lock:
-                    summaries.append(cached)
-                return
+                summary = dict(cached) if isinstance(cached, dict) else cached
+                if isinstance(summary, dict) and meta.get("relative_path"):
+                    summary["relative_path"] = meta["relative_path"]
+                return summary, None
 
             summary = summarize_file(
                 file_path=file_path,
@@ -83,27 +81,45 @@ def generate_all_summaries(
                 model_name=model,
                 base_url=base_url,
             )
-            with results_lock:
-                summaries.append(summary)
+            if summary is None:
+                raise ValueError("Summarizer returned no result")
 
-            if not isinstance(summary, dict) or "error" not in summary:
+            if isinstance(summary, dict) and "error" not in summary:
+                summary = dict(summary)
+                if meta.get("relative_path"):
+                    summary["relative_path"] = meta["relative_path"]
                 summary_cache.put(
                     file_path, doc["content"], lang, summary, meta.get("mtime", 0)
                 )
+
+            return summary, None
         except Exception as exc:
-            with results_lock:
-                errors.append(SummaryFailure(file_path=file_path, reason=str(exc)))
+            return None, SummaryFailure(file_path=file_path, reason=str(exc))
 
     effective_workers = resolve_worker_count(max_workers, total_documents)
 
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
-        futures = [executor.submit(process_document, doc) for doc in documents]
+        futures = {
+            executor.submit(process_document, doc): index
+            for index, doc in enumerate(documents)
+        }
 
-        for _ in as_completed(futures):
+        for future in as_completed(futures):
+            index = futures[future]
+            try:
+                summaries[index], errors[index] = future.result()
+            except Exception as exc:
+                file_path = documents[index]["metadata"]["file_path"]
+                errors[index] = SummaryFailure(file_path=file_path, reason=str(exc))
+
             if progress and task_id is not None:
                 progress.update(task_id, advance=1)
 
-    return summaries, errors
+    return (
+        [summary for summary in summaries if summary is not None],
+        [error for error in errors if error is not None],
+    )
+
 
 def build_directory_tree(file_summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -113,7 +129,8 @@ def build_directory_tree(file_summaries: List[Dict[str, Any]]) -> Dict[str, Any]
     for summary in file_summaries:
         if isinstance(summary, str):
             continue
-        path = summary.get("file_path", "")
+        path = summary.get("relative_path") or summary.get("file_path", "")
+        path = path.replace("\\", "/")
         if not path:
             continue
         parts = path.split("/")
@@ -192,6 +209,12 @@ def generate_hierarchical_summaries(
         if progress and task_id is not None:
             progress.update(task_id, advance=1)
             
+        if not isinstance(dir_summary, dict) or is_failed_summary(dir_summary):
+            return contents
+
+        if not dir_summary.get("description"):
+            return contents
+
         return dir_summary
         
     top_level_summaries = process_dir(tree)
