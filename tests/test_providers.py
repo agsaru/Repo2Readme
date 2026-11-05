@@ -230,6 +230,7 @@ class TestApiKeyResolution:
         env_file = tmp_path / "env.json"
         env_file.write_text(json.dumps({"GOOGLE_API_KEY": "google-secret"}))
         monkeypatch.setattr(config, "ENV_PATH", str(env_file))
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
 
         assert config.get_api_key("gemini") == "google-secret"
 
