@@ -60,11 +60,20 @@ repo2readme run --local . --provider together
 repo2readme run --local . --provider anthropic --model claude-sonnet-4-5
 ```
 
-`ollama` talks to a local server (`http://localhost:11434` by default) and never
-prompts for a key. It needs the optional `langchain-ollama` package:
+Install the matching optional integration before selecting a provider other than Groq:
+
+| Provider | Install |
+|---|---|
+| Google Gemini | `pip install "repo2readme[google]"` |
+| OpenAI, OpenRouter, Together | `pip install "repo2readme[openai]"` |
+| Anthropic | `pip install "repo2readme[anthropic]"` |
+| Ollama | `pip install "repo2readme[ollama]"` |
+
+`ollama` talks to a local server (`http://localhost:11434` by default) and
+does not need an API key:
 
 ```bash
-pip install langchain-ollama
+pip install "repo2readme[ollama]"
 repo2readme run --local . --provider ollama --model llama3
 ```
 
@@ -83,10 +92,15 @@ You won't need to re-enter them on future runs.
 
 ## Option 2: Set environment variables
 
+Set only the key for the provider you use. For example:
+
 ```bash
 export GROQ_API_KEY="your_groq_api_key"
-export GOOGLE_API_KEY="your_google_api_key"
 ```
+
+Other providers use `GOOGLE_API_KEY`, `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` or `TOGETHER_API_KEY`.
+Ollama does not require a key.
 
 This is useful for CI pipelines or if you don't want keys persisted to disk.
 
