@@ -115,6 +115,7 @@ class SummaryCache:
         self._index: dict[str, dict] = {}
         self._dirty = False
         self._pending_updates = 0
+        self._revision = 0
         self._lock = threading.Lock()
         self._io_lock = threading.Lock()
         self._last_write_error: Optional[str] = None
@@ -151,23 +152,31 @@ class SummaryCache:
         flushes exactly once, at the end of the run, so a single unwritable
         cache file silently discarded every summary the run had produced.
         """
-        with self._lock:
-            if not self._dirty or self._data is None:
+        while True:
+            with self._lock:
+                if not self._dirty or self._data is None:
+                    return False
+                payload = self._serialize()
+                pending = self._pending_updates
+                revision = self._revision
+                self._dirty = False
+                self._pending_updates = 0
+
+            if not self._write(payload):
+                with self._lock:
+                    self._dirty = True
+                    self._pending_updates = max(self._pending_updates, pending)
                 return False
-            payload = self._serialize()
-            pending = self._pending_updates
-            self._dirty = False
-            self._pending_updates = 0
 
-        if self._write(payload):
-            return True
+            with self._lock:
+                if self._revision == revision:
+                    return True
 
-        with self._lock:
-            # Another thread may have made changes of its own while the write
-            # was in flight; either way there is something to write again.
-            self._dirty = True
-            self._pending_updates = max(self._pending_updates, pending)
-        return False
+                # A mutation happened while this snapshot was being written.
+                # Write the newer state too, otherwise an older flush could
+                # finish after an autosave and replace it on disk.
+                self._dirty = True
+                self._pending_updates = max(1, self._pending_updates)
 
     @property
     def last_write_error(self) -> Optional[str]:
@@ -228,12 +237,12 @@ class SummaryCache:
         if self._data is not None:
             return
 
-        self._ensure_cache_dir()
-        if not os.path.exists(self.cache_file):
-            self._rebuild()
-            return
-
         try:
+            self._ensure_cache_dir()
+            if not os.path.exists(self.cache_file):
+                self._rebuild()
+                return
+
             with open(self.cache_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
@@ -244,7 +253,7 @@ class SummaryCache:
 
             self._data = data
             self._reindex()
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError) as e:
             logger.warning(f"Cache file corrupted or unreadable, rebuilding: {e}")
             self._rebuild()
 
@@ -266,8 +275,8 @@ class SummaryCache:
         increment.
         """
         with self._io_lock:
-            self._ensure_cache_dir()
             try:
+                self._ensure_cache_dir()
                 fd, tmp_path = tempfile.mkstemp(
                     dir=self.cache_dir, prefix="summaries_", suffix=".json.tmp"
                 )
@@ -324,6 +333,7 @@ class SummaryCache:
         """
         self._dirty = True
         self._pending_updates += 1
+        self._revision += 1
 
         if self.autosave and self._pending_updates >= self.autosave_every:
             self._save()
@@ -343,6 +353,7 @@ class SummaryCache:
         # re-detected (and re-logged) on every subsequent run.
         self._dirty = True
         self._pending_updates += 1
+        self._revision += 1
         if self.autosave:
             self._save()
 
@@ -465,5 +476,6 @@ class SummaryCache:
             self._stats["removals"] += removed
             self._dirty = True
             self._pending_updates += 1
+            self._revision += 1
             if self.autosave:
                 self._save()
