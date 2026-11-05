@@ -85,3 +85,12 @@ class TestIsBinaryContent:
     def test_empty_path_raises_value_error(self):
         with pytest.raises(ValueError):
             is_binary_content("")
+
+
+
+def test_negative_sample_size_is_rejected(tmp_path):
+    path = tmp_path / "sample.txt"
+    path.write_text("text", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="sample_size"):
+        is_binary_content(str(path), sample_size=-1)
