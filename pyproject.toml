@@ -22,25 +22,20 @@ dependencies = [
     "GitPython>=3.1.45",
     "python-dotenv>=1.2.1",
     "pathspec>=0.12.1",
-    
     "langchain>=1.2.0",
     "langchain-community>=0.4.1",
     "langchain-groq>=1.1.1",
-    "langchain-google-genai>=4.1.2",
-    "langchain-openai>=1.0.0",
-    "langchain-anthropic>=1.0.0",
-    
-    "groq>=0.37.1",
-    "google-genai>=1.56.0"
 ]
 
 [project.urls]
 Repository = "https://github.com/agsaru/repo2readme"
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=9.1.1",
-]
+google = ["langchain-google-genai>=4.1.2"]
+openai = ["langchain-openai>=1.0.0"]
+anthropic = ["langchain-anthropic>=1.0.0"]
+ollama = ["langchain-ollama"]
+dev = ["pytest>=9.1.1"]
 
 [project.scripts]
 repo2readme = "repo2readme.cli.main:main"
