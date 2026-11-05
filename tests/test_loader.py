@@ -337,3 +337,12 @@ def test_cleanup_when_directory_missing(mock_rmtree, mock_exists, url_loader):
     url_loader.cleanup()
 
     mock_rmtree.assert_not_called()
+
+
+def test_package_exports_loader_classes_not_wrapper_functions():
+    from repo2readme.loaders import LocalRepoLoader as ExportedLocalRepoLoader
+    from repo2readme.loaders import UrlRepoLoader as ExportedUrlRepoLoader
+
+    assert isinstance(ExportedLocalRepoLoader, type)
+    assert isinstance(ExportedUrlRepoLoader, type)
+    assert isinstance(LocalRepoLoader("repo"), ExportedLocalRepoLoader)
