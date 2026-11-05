@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 
 from repo2readme.utils.detect_language import detect_lang
@@ -58,9 +58,6 @@ def generate_all_summaries(
     if total_documents == 0:
         return [], []
 
-    summaries: list[Any | None] = [None] * total_documents
-    errors: list[SummaryFailure | None] = [None] * total_documents
-
     def process_document(doc):
         meta = doc["metadata"]
         file_path = meta["file_path"]
@@ -71,8 +68,7 @@ def generate_all_summaries(
                 summary = dict(cached) if isinstance(cached, dict) else cached
                 if isinstance(summary, dict):
                     summary["file_path"] = file_path
-                    if meta.get("relative_path"):
-                        summary["relative_path"] = meta["relative_path"]
+                    summary["relative_path"] = meta.get("relative_path", "")
                 return summary, None
 
             summary = summarize_file(
@@ -89,8 +85,7 @@ def generate_all_summaries(
             if isinstance(summary, dict) and "error" not in summary:
                 summary = dict(summary)
                 summary["file_path"] = file_path
-                if meta.get("relative_path"):
-                    summary["relative_path"] = meta["relative_path"]
+                summary["relative_path"] = meta.get("relative_path", "")
                 summary_cache.put(
                     file_path, doc["content"], lang, summary, meta.get("mtime", 0)
                 )
@@ -99,30 +94,20 @@ def generate_all_summaries(
         except Exception as exc:
             return None, SummaryFailure(file_path=file_path, reason=str(exc))
 
+    summaries = []
+    errors = []
     effective_workers = resolve_worker_count(max_workers, total_documents)
 
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
-        futures = {
-            executor.submit(process_document, doc): index
-            for index, doc in enumerate(documents)
-        }
-
-        for future in as_completed(futures):
-            index = futures[future]
-            try:
-                summaries[index], errors[index] = future.result()
-            except Exception as exc:
-                file_path = documents[index]["metadata"]["file_path"]
-                errors[index] = SummaryFailure(file_path=file_path, reason=str(exc))
-
+        for summary, error in executor.map(process_document, documents):
+            if summary is not None:
+                summaries.append(summary)
+            if error is not None:
+                errors.append(error)
             if progress and task_id is not None:
                 progress.update(task_id, advance=1)
 
-    return (
-        [summary for summary in summaries if summary is not None],
-        [error for error in errors if error is not None],
-    )
-
+    return summaries, errors
 
 def build_directory_tree(file_summaries: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
