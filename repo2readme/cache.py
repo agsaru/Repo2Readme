@@ -115,7 +115,6 @@ class SummaryCache:
         self._index: dict[str, dict] = {}
         self._dirty = False
         self._pending_updates = 0
-        self._revision = 0
         self._lock = threading.Lock()
         self._io_lock = threading.Lock()
         self._last_write_error: Optional[str] = None
@@ -140,43 +139,22 @@ class SummaryCache:
         self.flush()
 
     def flush(self) -> bool:
-        """
-        Write pending changes to disk. Returns True if the write succeeded.
-
-        Serialisation happens under the state lock; the disk write itself does
-        not, so summarization workers are not blocked while the file is being
-        replaced.
-
-        The dirty flag is only cleared once the bytes are on disk. Clearing it
-        up front meant a failed write threw the pending work away: the CLI
-        flushes exactly once, at the end of the run, so a single unwritable
-        cache file silently discarded every summary the run had produced.
-        """
-        while True:
-            with self._lock:
-                if not self._dirty or self._data is None:
-                    return False
-                payload = self._serialize()
-                pending = self._pending_updates
-                revision = self._revision
-                self._dirty = False
-                self._pending_updates = 0
-
-            if not self._write(payload):
-                with self._lock:
-                    self._dirty = True
-                    self._pending_updates = max(self._pending_updates, pending)
+        """Write pending changes to disk. Returns True if the write succeeded."""
+        with self._lock:
+            if not self._dirty or self._data is None:
                 return False
+            payload = self._serialize()
+            pending = self._pending_updates
+            self._dirty = False
+            self._pending_updates = 0
 
-            with self._lock:
-                if self._revision == revision:
-                    return True
+        if self._write(payload):
+            return True
 
-                # A mutation happened while this snapshot was being written.
-                # Write the newer state too, otherwise an older flush could
-                # finish after an autosave and replace it on disk.
-                self._dirty = True
-                self._pending_updates = max(1, self._pending_updates)
+        with self._lock:
+            self._dirty = True
+            self._pending_updates = max(self._pending_updates, pending)
+        return False
 
     @property
     def last_write_error(self) -> Optional[str]:
@@ -333,7 +311,6 @@ class SummaryCache:
         """
         self._dirty = True
         self._pending_updates += 1
-        self._revision += 1
 
         if self.autosave and self._pending_updates >= self.autosave_every:
             self._save()
