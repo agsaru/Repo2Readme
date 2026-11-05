@@ -740,3 +740,51 @@ class TestEnrichReadme:
         result2 = enrich_readme_with_graph(result1, graph)
         assert result2.count("## Dependency Overview") == 1
         assert result2.count("### Core Modules") == 1
+
+
+
+def test_js_parent_directory_import_resolves_from_parent():
+    files_map = {
+        "/repo/src/config.js": "/repo/src/config.js",
+        "/repo/shared.js": "/repo/shared.js",
+    }
+
+    assert _resolve_js_import(
+        "/repo/src/utils/helper.js", "../config.js", files_map
+    ) == "/repo/src/config.js"
+    assert _resolve_js_import(
+        "/repo/src/components/ui/main.js", "../../../shared.js", files_map
+    ) == "/repo/shared.js"
+
+
+def test_python_private_module_import_is_resolved():
+    files_map = {"/repo/_helpers.py": "/repo/_helpers.py"}
+
+    assert _resolve_python_import(
+        "/repo/main.py", "_helpers", files_map
+    ) == "/repo/_helpers.py"
+
+
+def test_empty_python_file_is_an_isolated_node():
+    graph = build_dependency_graph([
+        {
+            "content": "",
+            "metadata": {
+                "file_path": "/repo/empty.py",
+                "file_type": ".py",
+            },
+        }
+    ])
+
+    assert graph.get_isolated_files() == ["/repo/empty.py"]
+
+
+def test_core_module_ties_are_sorted_by_path():
+    graph = DependencyGraph()
+    graph.add_edge("/repo/z.py", "/repo/common.py")
+    graph.add_edge("/repo/a.py", "/repo/other.py")
+
+    assert graph.get_core_modules() == [
+        ("/repo/common.py", 1),
+        ("/repo/other.py", 1),
+    ]
