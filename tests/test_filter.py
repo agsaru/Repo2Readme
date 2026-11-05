@@ -108,3 +108,32 @@ def test_skip_reason_file_size_limit(tmp_path):
         max_file_size_kb=200,
     )
     assert reason == "exceeds maximum file size (307200 B > 204800 B limit)"
+
+
+
+def test_relative_exclude_pattern_is_not_rebased_against_root(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("print('hello')", encoding="utf-8")
+
+    allowed, reason = github_file_filter(
+        "src/main.py",
+        exclude_patterns=["src/*"],
+        root_path=str(tmp_path),
+    )
+
+    assert allowed is False
+    assert reason == "excluded by pattern"
+
+
+def test_relative_include_pattern_can_select_protected_manifest(tmp_path):
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "package-lock.json").write_text("{}", encoding="utf-8")
+
+    allowed, reason = github_file_filter(
+        "src/package-lock.json",
+        include_patterns=["src/package-lock.json"],
+        root_path=str(tmp_path),
+    )
+
+    assert allowed is True
+    assert reason == ""
