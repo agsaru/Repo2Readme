@@ -91,6 +91,29 @@ def test_git_plus_scheme_is_stripped():
     assert resolved.original == "git+ssh://git@github.com/acme/app.git"
 
 
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "https://user:password@github.com/acme/app.git",
+        "https://token@github.com/acme/app.git",
+        "https://github.com/acme/app.git?access_token=secret",
+        "https://github.com/acme/app.git?api_key=secret",
+    ],
+)
+def test_embedded_credentials_are_rejected(source):
+    with pytest.raises(InvalidSourceError, match="credentials"):
+        classify_source(source)
+
+
+def test_ssh_username_is_allowed():
+    assert classify_source("ssh://git@github.com/acme/app.git").is_remote
+
+
+def test_url_loader_rejects_embedded_credentials():
+    with pytest.raises(InvalidSourceError, match="credentials"):
+        UrlRepoLoader("https://user:password@github.com/acme/app.git")
+
 def test_surrounding_whitespace_is_ignored():
     assert classify_source("  https://github.com/acme/app  ").value == (
         "https://github.com/acme/app"
