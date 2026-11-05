@@ -14,7 +14,7 @@ repo2readme run --url https://github.com/agsaru/repo2readme -o README_NEW.md
 repo2readme run --local ./path/to/your/repo -o README_LOCAL.md
 ```
 
-If you don't pass `-o`, the output defaults to `README.md` in your current directory.
+If you don't pass `-o`, the generated README is printed to the terminal. Use `-o README.md` to save it to a file.
 
 ## Preview before spending tokens
 
