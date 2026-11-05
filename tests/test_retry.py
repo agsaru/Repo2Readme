@@ -407,3 +407,11 @@ class TestCallSites:
 
         assert "error" in result
         assert state["calls"] == 1
+
+
+
+@pytest.mark.parametrize("raw", ["nan", "inf", "-inf"])
+def test_non_finite_retry_delays_are_ignored(raw):
+    config = RetryConfig.from_env({ENV_BASE_DELAY: raw})
+
+    assert config.base_delay == DEFAULT_BASE_DELAY
