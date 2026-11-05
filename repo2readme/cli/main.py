@@ -31,7 +31,6 @@ from repo2readme.llm.settings import (
 )
 from repo2readme.providers import PROVIDERS, provider_choices_help
 
-# Import new services
 from repo2readme.services.environment import setup_api_keys
 from repo2readme.services.estimation import format_size, estimate_analysis_cost
 from repo2readme.services.summarization import generate_all_summaries, generate_hierarchical_summaries
@@ -170,16 +169,13 @@ def main():
     help="Branch to clone when using --url.",
 )
 def run(url, local, output, force, backup, create_dirs, include_patterns, exclude_patterns, max_file_size_kb, dry_run, strict, respect_gitignore, max_workers, provider, model, base_url, reviewer_provider, reviewer_model, reviewer_base_url, branch):
-    """ Use --url for GitHub repo url and --local for local repo
-    """
+    """Generate a README from a Git URL or local repository."""
     if bool(url) == bool(local):
         raise click.UsageError("Provide exactly one of --url or --local.")
 
     source = url or local
 
-    # Check the destination before anything is loaded or summarized. This used
-    # to happen in the open() at the very end of the run, so a missing parent
-    # directory threw away every API call the run had already paid for.
+    # Validate the output path before starting repository analysis.
     output_target = None
     if output is not None:
         try:
@@ -191,9 +187,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         if output_target.created_parent:
             rprint(f"[green]Created {output_target.path.parent}[/green]")
 
-    # Resolve the provider, model and base URL once, before anything expensive
-    # happens. A typo in --provider used to survive the clone, the traversal
-    # and the API key prompt and only then raise.
+    # Resolve settings before loading the repository or requesting API keys.
     try:
         settings = resolve_settings(provider, model, base_url)
         reviewer_settings = resolve_reviewer_settings(
@@ -203,16 +197,10 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         rprint(f"[red]{e}[/red]")
         raise SystemExit(2) from e
 
-    # Initialize file summary cache
     cache_dir = os.path.join(os.getcwd(), ".repo2readme", "cache")
-    # Keyed on the resolved settings rather than on the raw flags, so
-    # `--provider groq` and no flags at all - the same run - share a cache
-    # instead of invalidating each other.
+    # Cache entries are keyed by the resolved provider configuration.
     summarization_config = settings.as_cache_config()
-    # autosave=False batches the writes: the whole cache file has to be
-    # rewritten for any change, so saving once per summarized file made a run
-    # cost one full serialization per file. The run flushes once at the end,
-    # in the finally block, so an interrupted run still keeps its work.
+    # Flush once at the end of the run instead of rewriting the cache per file.
     summary_cache = SummaryCache(
         cache_dir=cache_dir,
         config=summarization_config,
@@ -249,13 +237,10 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             "metadata": f.metadata
         })
     
-    # Build dependency graph for README enrichment
     dependency_graph = build_dependency_graph(documents)
     dependency_overview = dependency_graph.to_markdown_summary()
 
-    # Build the tree from the documents that were actually loaded, so the
-    # "Folder Structure" section of the README cannot advertise files that were
-    # filtered out of the analysis.
+    # Include only files selected for analysis in the repository tree.
     tree = generate_tree_from_paths(
         root_path,
         [doc["metadata"].get("relative_path", "") for doc in documents],
@@ -297,15 +282,13 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             loader_obj.cleanup()
         return
 
-    # An empty repository cannot produce useful summaries. Stop before
-    # asking for API keys or making model calls.
+    # Avoid requesting API keys when there is nothing to summarize.
     if not documents:
         rprint("[red]No eligible files were found in the repository.[/red]")
         if hasattr(loader_obj, "cleanup"):
             loader_obj.cleanup()
         raise SystemExit(1)
 
-    # Normal execution: print estimation first
     rprint("\n[bold]Repository Analysis[/bold]\n")
     rprint(f"Files to summarize : {total_documents}")
     rprint(f"Estimated tokens   : ~{estimated_tokens:,}")
@@ -322,8 +305,6 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 return
 
         try:
-            # Only the providers this run will actually call, deduplicated:
-            # both keys used to be demanded whenever --provider was omitted.
             setup_api_keys(settings, reviewer_settings)
         except Exception as e:
             rprint(f"[red]Failed to configure API keys: {e}[/red]")
@@ -342,8 +323,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 task_id=task
             )
 
-        # Failure placeholders must not reach the roll-up or the README prompt,
-        # so split them out before anything else consumes them.
+        # Keep failed summaries out of the directory roll-up and README prompt.
         successful_summaries, failures = partition_summaries(summaries)
         failures.extend(errors)
         render_report(total_documents, len(successful_summaries), failures, rprint)
@@ -366,7 +346,6 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 task_id=rollup_task
             )
 
-        # Remove cache entries for files that no longer exist
         current_files = {doc["metadata"]["file_path"] for doc in documents}
         stale_entries = summary_cache.get_deleted_files(current_files)
         if stale_entries:
@@ -384,8 +363,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 reviewer_settings=reviewer_settings,
             )
         except ReadmeGenerationError as e:
-            # Nothing is written: an empty README would replace the user's
-            # existing file with zero bytes.
+            # Preserve the existing README when generation returns no content.
             rprint(f"\n[red]{e}[/red]")
             rprint(
                 "[yellow]Nothing was written. Re-run to try again, or use "
@@ -413,8 +391,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             try:
                 write_readme(destination, readme, backup=backup)
             except OSError as e:
-                # The README exists and was paid for; printing it is the only
-                # way the user keeps it. Silently discarding it is not.
+                # Print the generated README so it is not lost when writing fails.
                 rprint(f"\n[red]Could not write {destination}: {escape(str(e))}[/red]")
                 rprint("[yellow]Printing the README instead.[/yellow]\n")
                 rprint(readme)
@@ -431,8 +408,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
             raise SystemExit(1)
 
     finally:
-        # One write for the whole run, including when the run was interrupted
-        # part way through.
+        # Persist cached summaries even if the run is interrupted.
         summary_cache.flush()
         if hasattr(loader_obj, "cleanup"):
             loader_obj.cleanup()
