@@ -92,10 +92,14 @@ class GitignoreMatcher:
             if relative_dir
             else self.root_path
         )
-        sources = [os.path.join(directory, GITIGNORE_FILE)]
-        if not relative_dir:
-            sources.append(os.path.join(self.root_path, GIT_INFO_EXCLUDE))
-        return sources
+        if relative_dir:
+            return [os.path.join(directory, GITIGNORE_FILE)]
+
+        # .git/info/exclude has lower precedence than the root .gitignore.
+        return [
+            os.path.join(self.root_path, GIT_INFO_EXCLUDE),
+            os.path.join(directory, GITIGNORE_FILE),
+        ]
 
     def _spec_for(self, relative_dir: str):
         """Compiled spec for one directory, or None when it has no rules.
@@ -168,6 +172,7 @@ class GitignoreMatcher:
             "/".join(parts[:depth]) for depth in range(1, len(parts))
         ]
 
+        ignored = False
         for relative_dir in directories:
             spec = self._spec_for(relative_dir)
             if spec is None:
@@ -177,12 +182,23 @@ class GitignoreMatcher:
             if not candidate:
                 continue
 
-            if spec.match_file(candidate):
-                return True
-            if is_dir and spec.match_file(candidate + "/"):
-                return True
+            results = [spec.check_file(candidate)]
+            if is_dir:
+                results.append(spec.check_file(candidate + "/"))
 
-        return False
+            matches = [result for result in results if result.include is not None]
+            if matches:
+                # For directories, both "name" and "name/" can match. The
+                # later matching rule wins, just as it does within one file.
+                latest = max(
+                    matches,
+                    key=lambda result: (
+                        result.index if result.index is not None else -1
+                    ),
+                )
+                ignored = not latest.include
+
+        return ignored
 
     def clear(self) -> None:
         """Forget every compiled spec."""
