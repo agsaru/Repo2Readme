@@ -7,7 +7,6 @@ cli_main = importlib.import_module("repo2readme.cli.main")
 
 
 def test_dry_run_mode(monkeypatch, tmp_path):
-    # Create some dummy files in tmp_path
     file1 = tmp_path / "main.py"
     file1.write_text("print('hello')", encoding="utf-8")
     
@@ -30,7 +29,6 @@ def test_dry_run_mode(monkeypatch, tmp_path):
     assert result.exit_code == 0
     assert "Repository Analysis" in result.output
     assert "Files selected     : 2" in result.output
-    # main.py length is 14 -> ~4 tokens. utils.py length is 27 -> ~9 tokens. Total tokens -> ~13
     assert "Estimated tokens   : ~13" in result.output
     assert "Repository Tree" in result.output
     assert "Files to be processed" in result.output
@@ -41,7 +39,6 @@ def test_dry_run_mode(monkeypatch, tmp_path):
 
 
 def test_dry_run_shows_skipped_files(monkeypatch, tmp_path):
-    # Create some files including ones that should be skipped
     file1 = tmp_path / "main.py"
     file1.write_text("print('hello')", encoding="utf-8")
     
