@@ -28,11 +28,6 @@ def save_env(data):
         json.dump(data, f, indent=4)
 
 def get_api_keys():
-    """Return the configured Groq and Gemini keys."""
-    return get_api_key("groq"), get_api_key("google")
-
-
-def get_api_keys():
     env = load_env()
 
     groq = env.get("GROQ_API_KEY")
