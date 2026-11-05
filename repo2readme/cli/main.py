@@ -9,6 +9,7 @@ from rich.progress import Progress
 from rich.table import Table
 from repo2readme.config import reset_api_keys
 import os
+import hashlib
 from collections import Counter
 
 from repo2readme import __version__
@@ -33,7 +34,11 @@ from repo2readme.providers import PROVIDERS, provider_choices_help
 
 from repo2readme.services.environment import setup_api_keys
 from repo2readme.services.estimation import format_size, estimate_analysis_cost
-from repo2readme.services.summarization import generate_all_summaries, generate_hierarchical_summaries
+from repo2readme.services.summarization import (
+    generate_all_summaries,
+    generate_hierarchical_summaries,
+    summary_cache_key,
+)
 from repo2readme.services.orchestrator import ReadmeGenerationError, run_pipeline
 from repo2readme.services.reporting import partition_summaries, render_report
 from repo2readme.utils.workers import validate_max_workers
@@ -191,6 +196,10 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         raise click.UsageError("Provide exactly one of --url or --local.")
 
     source = url or local
+    cache_namespace = None
+    if url:
+        identity = f"{source.strip()}\\0{branch}"
+        cache_namespace = "remote-" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
 
     # Validate the output path before starting repository analysis.
     output_target = None
@@ -341,7 +350,8 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 base_url=settings.base_url,
                 max_workers=max_workers,
                 progress=progress,
-                task_id=task
+                task_id=task,
+                cache_namespace=cache_namespace,
             )
 
         # Keep failed summaries out of the directory roll-up and README prompt.
@@ -367,7 +377,10 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 task_id=rollup_task
             )
 
-        current_files = {doc["metadata"]["file_path"] for doc in documents}
+        current_files = {
+            summary_cache_key(doc["metadata"], cache_namespace)
+            for doc in documents
+        }
         stale_entries = summary_cache.get_deleted_files(current_files)
         if stale_entries:
             stale_paths = [e["file_path"] for e in stale_entries]
