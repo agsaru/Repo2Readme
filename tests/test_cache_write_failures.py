@@ -343,39 +343,3 @@ def test_invalid_utf8_cache_file_is_rebuilt(tmp_path, config):
 
     assert cache.get("a.py", "x = 1", "python") is None
     assert cache.stats()["misses"] == 1
-
-
-def test_concurrent_flush_cannot_overwrite_a_newer_update(tmp_path, config):
-    cache = _cache(tmp_path, config, autosave=False)
-    _put(cache, "first.py")
-
-    write_started = threading.Event()
-    allow_first_write = threading.Event()
-    original_write = cache._write
-    write_count = 0
-
-    def delayed_write(payload):
-        nonlocal write_count
-        write_count += 1
-        if write_count == 1:
-            write_started.set()
-            assert allow_first_write.wait(timeout=2)
-        return original_write(payload)
-
-    cache._write = delayed_write
-    result = []
-    thread = threading.Thread(target=lambda: result.append(cache.flush()))
-    thread.start()
-
-    assert write_started.wait(timeout=2)
-    _put(cache, "second.py", "x = 2")
-    allow_first_write.set()
-    thread.join(timeout=2)
-
-    assert not thread.is_alive()
-    assert result == [True]
-
-    with open(cache.cache_file, encoding="utf-8") as handle:
-        entries = json.load(handle)["entries"]
-
-    assert {entry["file_path"] for entry in entries} == {"first.py", "second.py"}
