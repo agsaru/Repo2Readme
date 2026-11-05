@@ -52,8 +52,12 @@ def get_api_key(provider: str):
     if not spec.requires_api_key:
         return None
 
-    env = load_env()
     env_var = spec.env_var
+    api_key = os.environ.get(env_var)
+    if api_key:
+        return api_key
+
+    env = load_env()
     api_key = env.get(env_var)
 
     if api_key:
