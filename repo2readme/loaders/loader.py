@@ -103,6 +103,8 @@ class LocalRepoLoader:
     def load(self, return_skip_info=False):
         if not os.path.exists(self.folder_path):
             raise FileNotFoundError(f"Folder not found: {self.folder_path}")
+        if not os.path.isdir(self.folder_path):
+            raise NotADirectoryError(f"Repository path is not a directory: {self.folder_path}")
 
         docs, ctx = _run_traversal(
             self.folder_path,
