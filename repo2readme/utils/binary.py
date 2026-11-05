@@ -89,6 +89,8 @@ def is_binary_content(file_path: str, sample_size: int = _MAX_SAMPLE_SIZE) -> bo
     """
     if not file_path:
         raise ValueError("file_path must not be empty")
+    if sample_size < 0:
+        raise ValueError("sample_size must be non-negative")
 
     with open(file_path, "rb") as f:
         sample = f.read(sample_size)
