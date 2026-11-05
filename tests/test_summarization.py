@@ -10,8 +10,10 @@ class FakeCache:
     def __init__(self, cached=None):
         self.cached = cached
         self.saved = []
+        self.lookups = []
 
-    def get(self, *_args):
+    def get(self, *args):
+        self.lookups.append(args)
         return self.cached
 
     def put(self, *args):
@@ -71,11 +73,13 @@ def test_cached_summary_gets_the_current_relative_path():
     summaries, errors = summarization.generate_all_summaries(
         [_document("/new/checkout/src/main.py", "src/main.py")],
         cache,
+        cache_namespace="remote-abc",
     )
 
     assert errors == []
-    assert summaries[0]["file_path"] == "/old/checkout/src/main.py"
+    assert summaries[0]["file_path"] == "/new/checkout/src/main.py"
     assert summaries[0]["relative_path"] == "src/main.py"
+    assert cache.lookups[0][0] == "remote-abc/src/main.py"
     assert cache.saved == []
 
 
@@ -114,3 +118,23 @@ def test_failed_directory_rollup_falls_back_to_file_summaries(monkeypatch):
     result = summarization.generate_hierarchical_summaries(file_summaries)
 
     assert result == file_summaries
+
+
+
+def test_remote_cache_key_does_not_depend_on_temporary_clone_path():
+    first = summarization.summary_cache_key(
+        {
+            "file_path": "/tmp/clone-one/src/main.py",
+            "relative_path": "src/main.py",
+        },
+        "remote-abc",
+    )
+    second = summarization.summary_cache_key(
+        {
+            "file_path": "/tmp/clone-two/src/main.py",
+            "relative_path": "src/main.py",
+        },
+        "remote-abc",
+    )
+
+    assert first == second == "remote-abc/src/main.py"
