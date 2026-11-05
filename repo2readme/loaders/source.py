@@ -20,7 +20,7 @@ import os
 import re
 from dataclasses import dataclass
 from enum import Enum
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 from urllib.request import url2pathname
 
 # A URL scheme as defined by RFC 3986: letter, then letters/digits/+/-/.
@@ -90,6 +90,36 @@ def _file_url_to_path(source: str) -> str:
     return path
 
 
+
+def _validate_remote_credentials(source: str, scheme: str) -> None:
+    """Reject secrets embedded in a remote URL before Git can echo them."""
+    parsed = urlparse(source)
+    if parsed.password is not None or (
+        scheme != "ssh" and parsed.username is not None
+    ):
+        raise InvalidSourceError(
+            "Repository URLs must not contain embedded credentials. "
+            "Use a Git credential helper or SSH keys instead."
+        )
+
+    credential_keys = {
+        "token",
+        "access_token",
+        "password",
+        "secret",
+        "credential",
+        "api_key",
+        "auth",
+    }
+    if any(
+        key.lower() in credential_keys
+        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+    ):
+        raise InvalidSourceError(
+            "Repository URLs must not contain credentials in query parameters. "
+            "Use a Git credential helper or SSH keys instead."
+        )
+
 def classify_source(source: str) -> RepoSource:
     """
     Decide whether ``source`` is a remote repository or a local path.
@@ -119,6 +149,7 @@ def classify_source(source: str) -> RepoSource:
             return RepoSource(SourceKind.LOCAL, _file_url_to_path(original), original)
 
         if scheme in REMOTE_SCHEMES:
+            _validate_remote_credentials(original, scheme)
             return RepoSource(SourceKind.REMOTE, original, original)
 
         # git+ssh://, git+https://, ... are how some tools spell these.
@@ -126,10 +157,11 @@ def classify_source(source: str) -> RepoSource:
             remainder = scheme[len("git+"):]
             if remainder in REMOTE_SCHEMES:
                 stripped = original[len("git+"):]
+                _validate_remote_credentials(original, remainder)
                 return RepoSource(SourceKind.REMOTE, stripped, original)
 
         raise InvalidSourceError(
-            f"Unsupported URL scheme {scheme!r} in {original!r}. "
+            f"Unsupported URL scheme {scheme!r}. "
             f"Supported schemes: {', '.join(sorted(REMOTE_SCHEMES | LOCAL_SCHEMES))}, "
             "or scp-style user@host:path."
         )
