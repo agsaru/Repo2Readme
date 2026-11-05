@@ -360,119 +360,64 @@ class TestCallSites:
             factory.create_llm(provider="wat")
 
 
-class TestWorkflowState:
-    def test_the_reviewer_node_uses_the_reviewer_settings(self, monkeypatch):
+class TestWorkflowSettings:
+    def test_reviewer_uses_the_selected_reviewer_settings(self, monkeypatch):
         from repo2readme.readme import agent_workflow
 
+        main = resolve_settings("groq", "llama-3.3-70b-versatile")
+        reviewer = resolve_reviewer_settings(main, provider="google")
         seen = {}
 
         class FakeReview:
             score = 9.0
             feedback = "fine"
 
-        def fake_reviewer(readme, provider=None, model_name=None, base_url=None):
-            seen.update(
-                provider=provider, model_name=model_name, base_url=base_url
-            )
+        monkeypatch.setattr(agent_workflow, "generate_readme", lambda **_kwargs: "# Title")
+
+        def fake_reviewer(readme, **kwargs):
+            seen.update(kwargs)
             return FakeReview()
 
         monkeypatch.setattr(agent_workflow, "readme_reviewer", fake_reviewer)
-
-        agent_workflow.readme_reviewer_node(
-            {
-                "readme": ["# Title"],
-                "best_score": 0.0,
-                "best_readme": "",
-                "iteration_no": 0,
-                "provider": "groq",
-                "model": "llama-3.3-70b-versatile",
-                "base_url": None,
-                "reviewer_provider": "google",
-                "reviewer_model": "gemini-2.5-flash",
-                "reviewer_base_url": None,
-            }
-        )
+        agent_workflow.generate_readme_with_review([], "", "", main, reviewer)
 
         assert seen["provider"] == "google"
-        assert seen["model_name"] == "gemini-2.5-flash"
-
-    def test_the_reviewer_node_falls_back_to_the_run_settings(self, monkeypatch):
-        from repo2readme.readme import agent_workflow
-
-        seen = {}
-
-        class FakeReview:
-            score = 9.0
-            feedback = "fine"
-
-        def fake_reviewer(readme, provider=None, model_name=None, base_url=None):
-            seen.update(provider=provider, model_name=model_name)
-            return FakeReview()
-
-        monkeypatch.setattr(agent_workflow, "readme_reviewer", fake_reviewer)
-
-        agent_workflow.readme_reviewer_node(
-            {
-                "readme": ["# Title"],
-                "best_score": 0.0,
-                "best_readme": "",
-                "iteration_no": 0,
-                "provider": "groq",
-                "model": "llama-3.3-70b-versatile",
-                "base_url": None,
-                "reviewer_provider": None,
-                "reviewer_model": None,
-                "reviewer_base_url": None,
-            }
-        )
-
-        assert seen["provider"] == "groq"
-        assert seen["model_name"] == "llama-3.3-70b-versatile"
+        assert seen["model_name"] == get_provider("google").default_model
 
 
 class TestOrchestratorWiring:
-    def test_the_workflow_state_carries_both_settings(self, monkeypatch):
+    def test_pipeline_passes_both_resolved_settings(self, monkeypatch):
         from repo2readme.services import orchestrator
 
         captured = {}
 
-        class FakeWorkflow:
-            def invoke(self, state):
-                captured.update(state)
-                return {"best_readme": "# Title\n"}
+        def fake_workflow(summaries, tree, dependency_overview, settings, reviewer_settings):
+            captured.update(settings=settings, reviewer_settings=reviewer_settings)
+            return {"best_readme": "# Title\n", "readme": ["# Title\n"]}
 
-        monkeypatch.setattr(orchestrator, "build_workflow", lambda: FakeWorkflow())
-
+        monkeypatch.setattr(orchestrator, "generate_readme_with_review", fake_workflow)
         main = resolve_settings("groq", "llama-3.3-70b-versatile")
-        orchestrator.run_pipeline(
-            summaries=[],
-            tree="",
-            dependency_overview="",
-            settings=main,
-            reviewer_settings=resolve_reviewer_settings(main, provider="google"),
-        )
+        reviewer = resolve_reviewer_settings(main, provider="google")
+        orchestrator.run_pipeline([], "", "", main, reviewer)
 
-        assert captured["provider"] == "groq"
-        assert captured["model"] == "llama-3.3-70b-versatile"
-        assert captured["reviewer_provider"] == "google"
-        assert captured["reviewer_model"] == get_provider("google").default_model
+        assert captured["settings"].provider == "groq"
+        assert captured["settings"].model == "llama-3.3-70b-versatile"
+        assert captured["reviewer_settings"].provider == "google"
+        assert captured["reviewer_settings"].model == get_provider("google").default_model
 
-    def test_the_reviewer_defaults_to_the_run_settings(self, monkeypatch):
+    def test_reviewer_defaults_to_run_settings(self, monkeypatch):
         from repo2readme.services import orchestrator
 
         captured = {}
 
-        class FakeWorkflow:
-            def invoke(self, state):
-                captured.update(state)
-                return {"best_readme": "# Title\n"}
+        def fake_workflow(summaries, tree, dependency_overview, settings, reviewer_settings):
+            captured.update(settings=settings, reviewer_settings=reviewer_settings)
+            return {"best_readme": "# Title\n", "readme": ["# Title\n"]}
 
-        monkeypatch.setattr(orchestrator, "build_workflow", lambda: FakeWorkflow())
+        monkeypatch.setattr(orchestrator, "generate_readme_with_review", fake_workflow)
+        orchestrator.run_pipeline([], "", "")
 
-        orchestrator.run_pipeline(summaries=[], tree="", dependency_overview="")
-
-        assert captured["reviewer_provider"] == captured["provider"]
-        assert captured["reviewer_model"] == captured["model"]
+        assert captured["reviewer_settings"] == captured["settings"]
 
 
 # ---------------------------------------------------------------------------
