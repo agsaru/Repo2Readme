@@ -226,7 +226,7 @@ Deletes the locally stored API key configuration file (`~/.repo2readme_env.json`
 repo2readme reset
 ```
 
-You'll be prompted to re-enter your `GROQ_API_KEY` and `GOOGLE_API_KEY` on the next `run`.
+You'll be prompted for the API key required by the provider selected on the next `run`.
 
 ## See also
 
