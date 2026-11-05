@@ -252,3 +252,108 @@ def test_empty_repository_does_not_request_api_keys(monkeypatch, tmp_path):
 
     assert result.exit_code == 1
     assert "No eligible files were found" in result.output
+
+
+
+def test_negative_max_file_size_is_rejected_before_loading(tmp_path):
+    result = CliRunner().invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path), "--max-file-size-kb", "-1"],
+    )
+
+    assert result.exit_code == 2
+    assert "must be non-negative" in result.output
+
+
+def test_repository_load_failure_returns_nonzero(monkeypatch, tmp_path):
+    class FailingLoader:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def load(self):
+            raise RuntimeError("clone failed")
+
+    monkeypatch.setattr(cli_main, "RepoLoader", FailingLoader)
+
+    result = CliRunner().invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path), "--force"],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed to load repository" in result.output
+
+
+def test_api_key_setup_failure_cleans_up_loader(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    cleaned = []
+
+    class FakeLoader:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def load(self):
+            document = SimpleNamespace(
+                page_content="print('hello')",
+                metadata={
+                    "file_path": str(tmp_path / "main.py"),
+                    "relative_path": "main.py",
+                    "file_type": ".py",
+                },
+            )
+            return [document], str(tmp_path), self
+
+        def cleanup(self):
+            cleaned.append(True)
+
+    monkeypatch.setattr(cli_main, "RepoLoader", FakeLoader)
+
+    def fail_setup(*_args):
+        raise RuntimeError("missing key")
+
+    monkeypatch.setattr(cli_main, "setup_api_keys", fail_setup)
+
+    result = CliRunner().invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path), "--force"],
+    )
+
+    assert result.exit_code == 1
+    assert cleaned == [True]
+
+
+def test_declining_confirmation_cleans_up_loader(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    cleaned = []
+
+    class FakeLoader:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def load(self):
+            document = SimpleNamespace(
+                page_content="print('hello')",
+                metadata={
+                    "file_path": str(tmp_path / "main.py"),
+                    "relative_path": "main.py",
+                    "file_type": ".py",
+                },
+            )
+            return [document], str(tmp_path), self
+
+        def cleanup(self):
+            cleaned.append(True)
+
+    monkeypatch.setattr(cli_main, "RepoLoader", FakeLoader)
+    monkeypatch.setattr(cli_main, "setup_api_keys", lambda *_args: None)
+
+    result = CliRunner().invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path)],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert cleaned == [True]
