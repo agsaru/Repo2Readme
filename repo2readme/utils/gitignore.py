@@ -196,7 +196,7 @@ class GitignoreMatcher:
                         result.index if result.index is not None else -1
                     ),
                 )
-                ignored = not latest.include
+                ignored = latest.include
 
         return ignored
 
