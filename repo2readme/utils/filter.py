@@ -371,11 +371,11 @@ def github_file_filter(
     # the path relative to that root so patterns like `src/*` work as
     # expected for absolute file paths.
     match_path = normalized_path
-    if root_path:
+    if root_path and os.path.isabs(path):
         try:
             rel = os.path.relpath(path, root_path)
             match_path = _normalize_path(rel)
-        except Exception:
+        except (OSError, ValueError):
             match_path = normalized_path
 
     if _matches_any(match_path, exclude_patterns):
