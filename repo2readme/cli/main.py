@@ -9,7 +9,6 @@ from rich.progress import Progress
 from rich.table import Table
 from repo2readme.config import reset_api_keys
 import os
-import hashlib
 from collections import Counter
 
 from repo2readme import __version__
@@ -37,7 +36,6 @@ from repo2readme.services.estimation import format_size, estimate_analysis_cost
 from repo2readme.services.summarization import (
     generate_all_summaries,
     generate_hierarchical_summaries,
-    summary_cache_key,
 )
 from repo2readme.services.orchestrator import ReadmeGenerationError, run_pipeline
 from repo2readme.services.reporting import partition_summaries, render_report
@@ -196,11 +194,6 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
         raise click.UsageError("Provide exactly one of --url or --local.")
 
     source = url or local
-    cache_namespace = None
-    if url:
-        identity = f"{source.strip()}\\0{branch}"
-        cache_namespace = "remote-" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:20]
-
     # Validate the output path before starting repository analysis.
     output_target = None
     if output is not None:
@@ -345,8 +338,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 max_workers=max_workers,
                 progress=progress,
                 task_id=task,
-                cache_namespace=cache_namespace,
-            )
+                    )
 
         # Keep failed summaries out of the directory roll-up and README prompt.
         successful_summaries, failures = partition_summaries(summaries)
