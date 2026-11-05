@@ -363,10 +363,7 @@ def run(url, local, output, force, backup, create_dirs, include_patterns, exclud
                 task_id=rollup_task
             )
 
-        current_files = {
-            summary_cache_key(doc["metadata"], cache_namespace)
-            for doc in documents
-        }
+        current_files = {doc["metadata"]["file_path"] for doc in documents}
         stale_entries = summary_cache.get_deleted_files(current_files)
         if stale_entries:
             stale_paths = [e["file_path"] for e in stale_entries]
