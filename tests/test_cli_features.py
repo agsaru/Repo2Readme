@@ -223,3 +223,35 @@ def test_normal_run_force_bypasses_confirmation(monkeypatch, tmp_path):
     assert api_keys_called is True
     assert summarize_called is True
     assert workflow_called is True
+
+def test_run_requires_exactly_one_repository_source(tmp_path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path), "--url", "https://github.com/owner/repo"],
+    )
+
+    assert result.exit_code == 2
+    assert "Provide exactly one of --url or --local" in result.output
+
+
+def test_run_requires_a_repository_source():
+    result = CliRunner().invoke(cli_main.main, ["run"])
+
+    assert result.exit_code == 2
+    assert "Provide exactly one of --url or --local" in result.output
+
+
+def test_empty_repository_does_not_request_api_keys(monkeypatch, tmp_path):
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("API keys must not be requested for an empty repository")
+
+    monkeypatch.setattr(cli_main, "setup_api_keys", fail_if_called)
+
+    result = CliRunner().invoke(
+        cli_main.main,
+        ["run", "--local", str(tmp_path), "--force"],
+    )
+
+    assert result.exit_code == 1
+    assert "No eligible files were found" in result.output
