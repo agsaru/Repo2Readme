@@ -51,6 +51,14 @@ def test_local_load_missing_directory():
         loader.load()
 
 
+def test_local_load_rejects_a_file_path(tmp_path):
+    source_file = tmp_path / "main.py"
+    source_file.write_text("print('hello')", encoding="utf-8")
+
+    with pytest.raises(NotADirectoryError, match="not a directory"):
+        LocalRepoLoader(str(source_file)).load()
+
+
 @patch("repo2readme.loaders.loader.github_file_filter")
 def test_local_load_success(mock_filter, tmp_path):
     mock_filter.return_value = (True, "")
