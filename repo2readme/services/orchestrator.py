@@ -1,7 +1,7 @@
 import logging
 
 from repo2readme.llm.settings import LLMSettings, resolve_settings
-from repo2readme.readme.agent_workflow import build_workflow
+from repo2readme.readme.agent_workflow import generate_readme_with_review
 from repo2readme.readme.postprocess import postprocess_readme
 
 logger = logging.getLogger(__name__)
@@ -53,30 +53,13 @@ def run_pipeline(
         reviewer_settings.describe(),
     )
 
-    workflow = build_workflow()
-
-    initial_state = {
-        "summaries": summaries,
-        "tree_structure": tree,
-        "iteration_no": 0,
-        "max_iterations": 3,
-        'best_score': 0.0,
-        "best_readme": "",
-        "provider": settings.provider,
-        "model": settings.model,
-        "base_url": settings.base_url,
-        "reviewer_provider": reviewer_settings.provider,
-        "reviewer_model": reviewer_settings.model,
-        "reviewer_base_url": reviewer_settings.base_url,
-        "dependency_overview": dependency_overview,
-    }
-
-    final_state = workflow.invoke(initial_state)
-
-    # Empty entries mark the iterations whose review came back normally.
-    for error in final_state.get("review_errors") or []:
-        if error:
-            logger.warning("README review did not complete: %s", error)
+    final_state = generate_readme_with_review(
+        summaries,
+        tree,
+        dependency_overview,
+        settings,
+        reviewer_settings,
+    )
 
     readme, issues = postprocess_readme(select_readme(final_state))
 
