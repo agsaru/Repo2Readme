@@ -3,7 +3,7 @@ from langchain_core.output_parsers import StrOutputParser  # noqa: E402
 from typing import List  # noqa: E402
 from repo2readme.llm.factory import create_llm  # noqa: E402
 from repo2readme.utils.retry import call_with_retry
-from repo2readme.guardrails import untrusted_block  # noqa: E402
+from repo2readme.guardrails import untrusted_block, validate_readme_output  # noqa: E402
 
 
 def generate_readme(
@@ -113,4 +113,4 @@ Return ONLY valid Markdown
         }),
         description="README generation",
     )
-    return response
+    return validate_readme_output(response)
