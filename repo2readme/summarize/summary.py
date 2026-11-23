@@ -7,7 +7,6 @@ from langchain_core.output_parsers import JsonOutputParser
 from repo2readme.llm.factory import create_llm
 from repo2readme.utils.retry import call_with_retry
 from repo2readme.guardrails import prepare_source_content, untrusted_block
-from repo2readme.guardrails import prepare_source_content, untrusted_block
 
 
 
