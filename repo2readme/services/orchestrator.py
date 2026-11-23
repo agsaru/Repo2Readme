@@ -3,6 +3,7 @@ import logging
 from repo2readme.llm.settings import LLMSettings, resolve_settings
 from repo2readme.readme.agent_workflow import build_workflow
 from repo2readme.readme.postprocess import postprocess_readme
+from repo2readme.guardrails import redact_secrets
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,11 @@ def run_pipeline(
         if error:
             logger.warning("README review did not complete: %s", error)
 
-    readme, issues = postprocess_readme(select_readme(final_state))
+    candidate = select_readme(final_state)
+    safe_candidate = redact_secrets(candidate)
+    if safe_candidate != candidate:
+        logger.warning("Sensitive-looking values were redacted from the generated README")
+    readme, issues = postprocess_readme(safe_candidate)
 
     for issue in issues:
         logger.warning("README %s: %s", issue.kind, issue.message)
