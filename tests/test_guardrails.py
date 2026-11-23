@@ -27,7 +27,7 @@ class TestSecretRedaction:
         assert "private-material" not in redact_secrets(private_key)
 
     def test_preserves_environment_variable_references_and_placeholders(self):
-        source = 'API_KEY = "\${API_KEY}"\nPASSWORD=your-password'
+        source = 'API_KEY = "$API_KEY"\nPASSWORD=your-password'
         assert redact_secrets(source) == source
 
     def test_empty_input_is_unchanged(self):
